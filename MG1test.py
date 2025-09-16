@@ -1,0 +1,33 @@
+from queue_sim import *
+import math
+import random
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def genExp(mu): # generate S ~ Exp(mu)
+    return lambda: -(1/mu)*math.log(1-random.random())
+
+lambdas = [1.0, 1.2, 1.4, 1.6, 1.8]
+Ts = []
+Ns = []
+ratios = []
+
+for l in lambdas:
+    fifo = FCFS(sizefn = genExp(2.0))
+    srpt = SRPT(sizefn=genExp(2.0))
+    srpt2 = SRPT(sizefn = genExp(2.0))
+    system = QueueSystem([srpt, srpt2], arrivalfn = genExp(l))
+    N,T= system.sim() #need N, rho
+    Ts.append(T)
+    #Ns.append(N)
+    #ratios.append(N/T)
+    #print(f"N: {N}, T: {T}, rho: {rho}")
+    print(f"N: {N}, T: {T}")
+
+# Ts = np.array(Ts)
+#Ns = np.array(Ns)
+#plt.plot(lambdas, Ts)
+#plt.plot(lambdas, Ns)
+#plt.plot(lambdas, ratios)
+#plt.show()
