@@ -9,7 +9,13 @@ Designed for studying performance metrics such as **sojourn time (E[T])**, **thr
 - Extensible `Server` base class with plug-in scheduling policies (FIFO, SRPT, …)  
 - Support for multi-server tandem systems and internal job transfers  
 - Efficient collection of statistics using time-averaged state (via Little’s Law)  
-- Example experiments (e.g., tandem FIFO → SRPT) in `examples/`  
+- Example experiments (e.g., tandem FIFO → SRPT) in `examples/`
+
+## TODO
+- Probabilistic routing (e.g. server 1 feeds to server 2 with probability 0.2, job exits w.p. 0.8)
+- Multiple servers with external arrivals
+- Support for closed networks
+- Finite-sized queues
 
 ## Example
 ```python
