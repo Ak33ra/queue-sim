@@ -22,11 +22,11 @@ Designed for studying performance metrics such as **sojourn time (E[T])**, **thr
 ```python
 from queue_sim import *
 
-def genExp(mu):
-  return lambda: -(1/mu)*math.log(1-random.random())
+lambdas = [1.0, 1.2, 1.4, 1.6, 1.8]
 
-fcfs = FCFS(sizefn = genExp(2.0))
-srpt = SRPT(sizefn = genExp(2.0))
-system = QueueSystem(servers=[fifo, srpt], arrivalfn = genExp(1.0))
-stats = system.sim(NUM_EVENTS=10**6)
-print("Mean sojourn time:", stats["ET"]
+for l in lambdas:
+    fifo = FCFS(sizefn = genExp(2.0))
+    srpt = SRPT(sizefn=genExp(2.0))
+    system = QueueSystem([fifo, srpt], arrivalfn = genExp(l))
+    N,T= system.sim()
+    print(f"E[N]: {N}, E[T]: {T}"
