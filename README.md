@@ -13,11 +13,13 @@ Designed for studying performance metrics such as **sojourn time (E[T])**, **thr
 
 ## Example
 ```python
-from queue_sim import Engine, FIFO, SRPT
+from queue_sim import *
 
-fifo = FIFO("fifo1")
-srpt = SRPT("srpt1")
-engine = Engine(servers=[fifo, srpt], startServer=fifo)
+def genExp(mu):
+  return lambda: -(1/mu)*math.log(1-random.random())
 
-stats = engine.sim(NUM_EVENTS=100_000)
+fcfs = FCFS(sizefn = genExp(2.0))
+srpt = SRPT(sizefn = genExp(2.0))
+system = QueueSystem(servers=[fifo, srpt], arrivalfn = genExp(1.0))
+stats = system.sim(NUM_EVENTS=10**6)
 print("Mean sojourn time:", stats["ET"]
