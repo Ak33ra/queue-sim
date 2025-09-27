@@ -2,6 +2,7 @@ import math
 from enum import Enum
 from .server import Server
 from typing import List
+from .lib import rvGen
 
 # the system is a class that chains together multiple servers and simulates a job sequence on it
 # reports mean response time, num jobs, and load
@@ -24,19 +25,39 @@ class QueueSystem:
         self.genArrival = arrivalfn
         self.servers : List[Server] = servers
         self.numServers = len(servers)
-        # tuples (TIME TO EVENT, SERVERID, EVENT)
-        # self.nextEvent = (self.genArrival(), 0, Event.ARRIVAL)
+        self.transitionMatrix = transitionMatrix
         self.T = 0
 
     def addServer(self, server):
         self.servers.append(server)
         self.numServers += 1
 
-    def verifyTransMatrix(self):
-        # make sure dimensions match with number of servers, and that all probabilities add up to 1.0
-        # if not, throw an error
-        pass
+    def updateTransitionMatrix(self, M):
+        self.transitionMatrix = M
 
+    def verifyTransMatrix(self):
+        if (self.transitionMatrix == []):
+            return
+        n = len(self.transitionMatrix)
+        if (n != len(self.transitionMatrix[0])-1):
+            raise ValueError("Transition matrix must be n by n+1, where n = numServers\n" \
+                             "The n+1th column is the probability of the job exiting the system\n"
+                             "update the transition matrix to [] if non-probabilistic routing is desired")
+        for row in range(n):
+            if sum(self.transitionMatrix[row]) != 1.0:
+                raise ValueError("Transition matrix rows must sum to 1.0\n" \
+                                 "The n+1th column is the probability of the job exiting the system\n"
+                                 "update the transition matrix to [] if non-probabilistic routing is desired")
+
+    def getNextServer(self, currServer):
+        u = rvGen.Uniform(0,1)
+        probabilities = self.transitionMatrix[currServer]
+        acc = 0
+        for (i,p) in enumerate(probabilities):
+            acc += p
+            if (u < acc):
+                return i
+            
     def processStats(self):
         return self.T
 
@@ -48,6 +69,9 @@ class QueueSystem:
         return m
 
     def sim(self, NUM_EVENTS = 10**6):
+        self.verifyTransMatrix()
+        deterministicRouting = (self.transitionMatrix == [])
+
         num_completions = 0
         TTNA = self.genArrival()
         TTNC = math.inf
@@ -72,11 +96,15 @@ class QueueSystem:
 
             if (TTNC == 0.0):
                 for id in completed:
-                    if (id == self.numServers - 1):
+                    if (deterministicRouting):
+                        nextServer = id + 1
+                    else:
+                        nextServer = self.getNextServer(id)
+                    if (nextServer == self.numServers):
                         num_completions += 1
                         state -= 1
                     else:
-                        next = self.servers[id + 1]
+                        next = self.servers[nextServer]
                         next.arrival()
 
             if (TTNA  == 0.0):
