@@ -8,11 +8,11 @@ Designed for studying performance metrics such as **sojourn time (E[T])**, **thr
 - Global event calendar with deterministic tie-breaking for simultaneous arrivals/completions  
 - Extensible `Server` base class with plug-in scheduling policies (FIFO, SRPT, …)  
 - Support for multi-server tandem systems and internal job transfers  
-- Efficient collection of statistics using time-averaged state (via Little’s Law)  
+- Efficient collection of statistics using time-averaged state (via Little’s Law)
+- Probabilistic routing
 - Example experiments (e.g., tandem FIFO → SRPT) in `examples/`
 
 ## TODO
-- Probabilistic routing (e.g. server 1 feeds to server 2 with probability 0.2, job exits w.p. 0.8)
 - Multiple servers with external arrivals
 - Support for closed networks and associated metrics
 - Finite-sized queues
