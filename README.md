@@ -12,6 +12,10 @@ Designed for studying performance metrics such as **sojourn time (E[T])**, **thr
 - Probabilistic routing
 - Example experiments (e.g., tandem FIFO → SRPT) in `examples/`
 
+## In Progress
+- Commandline ASCII system display
+- Multiservers
+
 ## TODO
 - Multiple servers with external arrivals
 - Support for closed networks and associated metrics
