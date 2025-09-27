@@ -1,6 +1,4 @@
 from queue_sim import *
-import math
-import random
 
 lambdas = [1.0, 1.2, 1.4, 1.6, 1.8]
 

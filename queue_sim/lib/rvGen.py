@@ -15,3 +15,7 @@ def genUniform(a : float, b : float) -> Callable[[], float]:
 def genBoundedPareto(k, p, alpha):
     C = (k**alpha)/(1-(k/p)**alpha)
     return (-random.random()/C + k**(-alpha))**(-1/alpha)
+
+def Uniform(a,b):
+    d = b - a
+    return d*random.random() + a
