@@ -14,8 +14,17 @@ def genUniform(a : float, b : float) -> Callable[[], float]:
 # X ~ BoundedPareto(k, p, alpha)
 def genBoundedPareto(k, p, alpha):
     C = (k**alpha)/(1-(k/p)**alpha)
-    return (-random.random()/C + k**(-alpha))**(-1/alpha)
+    return lambda:(-random.random()/C + k**(-alpha))**(-1/alpha)
+
+def genBernoulli(p):
+    return lambda: 1 if (random.random() <= p) else 0
 
 def Uniform(a,b):
     d = b - a
     return d*random.random() + a
+
+def BoundedPareto(k, p, alpha):
+    return genBoundedPareto(k,p,alpha)()
+
+def Bernoulli(p):
+    genBernoulli(p)()

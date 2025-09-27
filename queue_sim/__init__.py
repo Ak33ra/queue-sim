@@ -5,6 +5,19 @@ from .policies.SRPT import SRPT
 from .lib.rvGen import genExp
 from .lib.rvGen import genUniform
 from .lib.rvGen import genBoundedPareto
+from .lib.rvGen import genBernoulli
 from .lib.rvGen import Uniform
+from .lib.rvGen import BoundedPareto
+from .lib.rvGen import Bernoulli
 
-__all__ = ["QueueSystem", "FCFS", "SRPT", "Server", "genExp", "genUniform", "genBoundedPareto", "Uniform"]
+__all__ = ["QueueSystem", 
+           "FCFS", 
+           "SRPT", 
+           "Server", 
+           "genExp", 
+           "genUniform", 
+           "genBoundedPareto", 
+           "genBernoulli", 
+           "Uniform", 
+           "BoundedPareto",
+           "Bernoulli"]
