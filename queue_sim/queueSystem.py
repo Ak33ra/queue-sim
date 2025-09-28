@@ -4,18 +4,15 @@ from .server import Server
 from typing import List
 from .lib import rvGen
 
-# the system is a class that chains together multiple servers and simulates a job sequence on it
-# reports mean response time, num jobs, and load
-# at each time step: compute TTNA for each server and send it
-# servers report back TTNE
-# execute servers with min TTNE, update all TTNAs
+'''
+Driver class that coordinates the progress of all servers within it
 
-# TODO: deterministic arrivals and/or job sizes
-# TODO: probabilistic routing
+Simulates a sequence of arrivals and reports performance statistics (mean response time, server load)
 
-class Event(Enum):
-    ARRIVAL = 0
-    COMPLETION = 1
+The execution is event driven: we don't progress in real-time. Instead, servers report the
+time until their next event back to the system, advancing a global clock. The system coordinates events
+between servers, and allows the simulation to proceed faster than real-time job sizes.
+'''
 
 class QueueSystem:
 

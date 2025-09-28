@@ -4,8 +4,16 @@ import math
 from collections import deque
 from typing import List, Callable
 
+'''
+Parent class from which specific service policies inherit their methods
+
+Implements the core functionality of a server: processing jobs and reporting event times to the system
+
+To create a custom policy, create a child of this class and implement the nextJob function,
+which defines the service policy
+'''
+
 class Server:
-    # receives TTNA from server
 
     def genExp(mu):
         return lambda:-(1/mu)*math.log(1-random.random())
