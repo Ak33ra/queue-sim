@@ -21,6 +21,7 @@ Designed for studying performance metrics such as **sojourn time (E[T])**, **thr
 - Support for closed networks and associated metrics
 - Finite-sized queues
 - Support for server load under non-Poisson arrivals
+- Multiserver jobs
 
 ## Example
 ```python
