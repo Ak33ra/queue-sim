@@ -1,8 +1,8 @@
 import math
 from enum import Enum
-from .server import Server
+from queue_sim.server import Server
 from typing import List
-from .lib import rvGen
+import queue_sim.lib.rvGen as rvGen
 
 '''
 Driver class that coordinates the progress of all servers within it

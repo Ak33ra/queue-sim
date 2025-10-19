@@ -14,3 +14,4 @@ for l in lambdas:
     system = QueueSystem([fifo, srpt], arrivalfn = genExp(l), transitionMatrix = transitionMatrix)
     N,T= system.sim() #need N, rho
     print(f"N: {N}, T: {T}")
+    
