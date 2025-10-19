@@ -16,8 +16,9 @@ keywords = ["simulation", "queueing", "discrete-event", "scheduling"]
 Homepage = "https://github.com/Ak33ra/queue-sim"
 Issues = "https://github.com/Ak33ra/queue-sim/issues"
 
-[tool.setuptools]
-packages = ["queue_sim"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["queue_sim*"]
 
 [tool.setuptools.package-data]
 queue_sim = ["py.typed"]
