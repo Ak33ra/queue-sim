@@ -8,3 +8,5 @@ class FCFS(Server):
 
     def nextJob(self):
         return self.genSize()
+    
+__all__ = ['FCFS']

@@ -113,3 +113,5 @@ class QueueSystem:
 
         self.T = area_N / max(1, num_completions)
         return (area_N / clock, self.T)
+    
+__all__ = ['QueueSystem']

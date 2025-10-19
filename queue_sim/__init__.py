@@ -1,23 +1,22 @@
-from .queueSystem import QueueSystem
-from .server import Server
-from .policies.FCFS import FCFS
-from .policies.SRPT import SRPT
-from .lib.rvGen import genExp
-from .lib.rvGen import genUniform
-from .lib.rvGen import genBoundedPareto
-from .lib.rvGen import genBernoulli
-from .lib.rvGen import Uniform
-from .lib.rvGen import BoundedPareto
-from .lib.rvGen import Bernoulli
+from importlib.metadata import version
 
-__all__ = ["QueueSystem", 
-           "FCFS", 
-           "SRPT", 
-           "Server", 
-           "genExp", 
-           "genUniform", 
-           "genBoundedPareto", 
-           "genBernoulli", 
-           "Uniform", 
-           "BoundedPareto",
-           "Bernoulli"]
+from queue_sim.queueSystem import *
+import queue_sim.queueSystem as queueSystem
+
+from queue_sim.server import *
+import queue_sim.server as server
+
+from queue_sim.policies import *
+import queue_sim.policies as policies
+
+from queue_sim.lib import *
+import queue_sim.lib as lib
+
+__version__ = version(__package__ or __name__)
+
+__all__ = []
+__all__.extend(["__version__"])
+__all__.extend(queueSystem.__all__)
+__all__.extend(server.__all__)
+__all__.extend(policies.__all__)
+__all__.extend(lib.__all__)

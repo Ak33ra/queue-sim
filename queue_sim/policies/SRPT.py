@@ -30,3 +30,5 @@ class SRPT(Server):
         heapq.heappush(self.jobs, self.genSize())
         self.TTNC = heapq.heappop(self.jobs)
         self.state += 1
+
+__all__ = ['SRPT']
