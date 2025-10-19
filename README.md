@@ -34,7 +34,7 @@ cd queue-sim
 pip install -e .
 ```
 
-To use a local copy, clone the repo and place the queue_sim folder in your project.
+To instead use a local copy, clone the repo and place the queue_sim folder in your project.
 
 After installation, import with something like:
 ```python
@@ -54,5 +54,6 @@ for l in lambdas:
     N,T= system.sim()
     print(f"E[N]: {N}, E[T]: {T}"
 ```
-Run with `python3 {filename}.py`
+Run with `python {filename}.py`
+
 
