@@ -24,18 +24,17 @@ Designed for studying performance metrics such as **sojourn time (E[T])**, **thr
 - Multiserver jobs
 
 ## Installation
-To install into your current Python environment using pip, run
+### Latest From GitHub
 `pip install "git+https://github.com/Ak33ra/queue-sim.git"`
 
-To install a locally editable version to your environment:
+### Dev Copy (editable)
 ```
 git clone https://github.com/Ak33ra/queue-sim.git
 cd queue-sim
 pip install -e .
 ```
 
-To instead use a local copy, clone the repo and place the queue_sim folder in your project.
-
+## Usage
 After installation, import with something like:
 ```python
 import queue_sim as qs
@@ -55,5 +54,6 @@ for l in lambdas:
     print(f"E[N]: {N}, E[T]: {T}"
 ```
 Run with `python {filename}.py`
+
 
 
