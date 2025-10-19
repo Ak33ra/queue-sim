@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "queue-sim"
+version = "0.1.0"
+description = "Discrete-event simulator for queueing networks"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Akira", email = "avdg@cmu.edu" }]
+license = { text = "MIT" }
+keywords = ["simulation", "queueing", "discrete-event", "scheduling"]
+
+[project.urls]
+Homepage = "https://github.com/Ak33ra/queue-sim"
+Issues = "https://github.com/Ak33ra/queue-sim/issues"
+
+[tool.setuptools]
+packages = ["queue_sim"]                 # the importable package folder
+
+[tool.setuptools.package-data]
+queue_sim = ["py.typed"]

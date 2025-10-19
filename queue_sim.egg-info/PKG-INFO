@@ -1,3 +1,15 @@
+Metadata-Version: 2.4
+Name: queue-sim
+Version: 0.1.0
+Summary: Discrete-event simulator for queueing networks
+Author-email: Akira <avdg@cmu.edu>
+License: MIT
+Project-URL: Homepage, https://github.com/Ak33ra/queue-sim
+Project-URL: Issues, https://github.com/Ak33ra/queue-sim/issues
+Keywords: simulation,queueing,discrete-event,scheduling
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+
 # queue-sim
 
 A lightweight **discrete-event simulation engine** for queueing systems and scheduling policies.  
