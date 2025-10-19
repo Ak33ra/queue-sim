@@ -1,8 +1,8 @@
 import math
 from enum import Enum
-from queue_sim.server import Server
+from .server import Server
 from typing import List
-import queue_sim.lib.rvGen as rvGen
+from .lib import Uniform
 
 '''
 Driver class that coordinates the progress of all servers within it
@@ -47,7 +47,7 @@ class QueueSystem:
                                  "update the transition matrix to [] if non-probabilistic routing is desired")
 
     def getNextServer(self, currServer):
-        u = rvGen.Uniform(0,1)
+        u = Uniform(0,1)
         probabilities = self.transitionMatrix[currServer]
         acc = 0
         for (i,p) in enumerate(probabilities):

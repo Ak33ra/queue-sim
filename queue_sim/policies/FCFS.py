@@ -1,4 +1,4 @@
-from queue_sim.server import *
+from ..server import *
 
 '''
 Implements a standard First Come First Served (FCFS) policy

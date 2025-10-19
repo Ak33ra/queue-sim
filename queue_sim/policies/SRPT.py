@@ -1,4 +1,4 @@
-from queue_sim.server import *
+from ..server import *
 import heapq
 
 '''
