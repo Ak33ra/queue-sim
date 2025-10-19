@@ -23,6 +23,12 @@ Designed for studying performance metrics such as **sojourn time (E[T])**, **thr
 - Support for server load under non-Poisson arrivals
 - Multiserver jobs
 
+## Setup
+Clone the repo and place the queue_sim folder in your project, then import it:
+```python
+import queue_sim
+```
+
 ## Example
 ```python
 from queue_sim import *
@@ -35,3 +41,5 @@ for l in lambdas:
     system = QueueSystem([fifo, srpt], arrivalfn = genExp(l))
     N,T= system.sim()
     print(f"E[N]: {N}, E[T]: {T}"
+```
+Run with `python3 {filename}.py`
