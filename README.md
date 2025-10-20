@@ -107,6 +107,7 @@ plt.show()
 ```
 
 The result:
+
 ![FCFS vs SRPT response time in M/M/1](images/FCFSvsSRPT_MM1.png)
 
 ### Further Analysis
@@ -143,4 +144,5 @@ plt.show()
 This shows us that at low traffic, the policies are similar. This makes sense, since when the server is mostly empty, the scheduling policy shouldn't have much of an effect (there isn't much queueing). However we see a spike in the ratio when the arrival rate is 10 jobs per sec, very close to the server speed of 12 jobs per sec, indicating that at high load, SRPT strongly outperforms FCFS.
 
 ### Summary
+
 In this example, we saw how to interpret a problem as a queueing model, and compared two possible scheduling policies under different job arrival rates. 
