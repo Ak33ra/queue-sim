@@ -50,9 +50,15 @@ from queue_sim import *
 lambdas = [1.0, 1.2, 1.4, 1.6, 1.8]
 
 for l in lambdas:
+    # create two servers with different scheduling policies
+    # at both servers, job sizes distrbuted Exponential(2.0)
     fifo = FCFS(sizefn = genExp(2.0))
     srpt = SRPT(sizefn=genExp(2.0))
+
+    # initialize the system with interarrival rate distributed Exponential(l)
     system = QueueSystem([fifo, srpt], arrivalfn = genExp(l))
+
+    # simulate and gather mean number of jobs (N) and response time (T)
     N,T= system.sim()
     print(f"E[N]: {N}, E[T]: {T}"
 ```
@@ -146,3 +152,4 @@ This shows us that at low traffic, the policies are similar. This makes sense, s
 ### Summary
 
 In this example, we saw how to interpret a problem as a queueing model, and compared two possible scheduling policies under different job arrival rates. 
+
