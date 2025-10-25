@@ -10,7 +10,7 @@ Parent class from which specific service policies inherit their methods
 Implements the core functionality of a server: processing jobs and reporting event times to the system
 
 To create a custom policy, create a child of this class and implement the nextJob function,
-which defines the service policy
+which defines the service policy. Define any needed fields in the initializer. See examples in queue_sim/policies.
 '''
 
 class Server:
@@ -63,4 +63,5 @@ class Server:
             return True
         return False
     
+
 __all__ = ["Server"]
