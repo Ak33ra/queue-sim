@@ -48,8 +48,18 @@ class Server:
 
     def queryTTNC(self):
         return self.TTNC
-        
-    def update(self, timeElapsed : float): # return (True, TTNC) if just completed a job, (FALSE, TTNC) otherwise
+
+    ''' Advances the server's state by timeElapsed.
+
+    Updates metrics and the time to next completion (TTNC).
+
+    Args: 
+        timeElapsed: time in seconds to advance in the simulation
+    Returns:
+        True if this server has completed a job in the current time step
+        False otherwise
+    '''
+    def update(self, timeElapsed : float):
         self.TTNC -= timeElapsed
         self.clock += timeElapsed
         if (self.TTNC <= 0.0):
@@ -65,3 +75,4 @@ class Server:
     
 
 __all__ = ["Server"]
+
