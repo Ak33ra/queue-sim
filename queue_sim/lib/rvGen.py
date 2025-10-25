@@ -1,3 +1,21 @@
+""" Functions to sample from common probability distributions.
+
+This module contains two types of routines:
+
+1. gen functions which return a lambda. On evaluation, they return a value
+from the specified distribution. Useful if you want to generate many values
+using the same distribution or avoid passing in the parameter to helper functions.
+
+Example usage:
+exponential = genExp(1.5) # a function of type void -> float
+random_val = exponential() # a float from the Exp(1.5) distribution
+
+2. non-gen functions which directly return a value according to the distribution
+
+Example usage:
+random_val = Uniform(2,5) # a float distributed Uniform(2,5)
+"""
+
 import math
 import random
 from typing import Callable
@@ -27,4 +45,5 @@ def BoundedPareto(k, p, alpha):
     return genBoundedPareto(k,p,alpha)()
 
 def Bernoulli(p):
+
     genBernoulli(p)()
