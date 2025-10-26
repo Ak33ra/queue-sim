@@ -4,7 +4,7 @@ A lightweight **discrete-event simulation engine** for queueing systems and sche
 Supports modular servers (e.g., **FCFS**, **SRPT with preemption**) that can be chained into larger queueing networks.  
 Designed for studying performance metrics such as **sojourn time (E[T])**, **throughput**, and **utilization** without unnecessary per-job bookkeeping.
 
-This project is mostly for fun, but if you're looking at this for some reason, suggestions and/or feedback on features, coding style, etc would be greatly appreciated.
+This project is mostly for fun, but if you're looking at this for some reason, feedback on features, coding style, etc would be greatly appreciated.
 
 ## Features
 - Global event calendar with deterministic tie-breaking for simultaneous arrivals/completions  
@@ -154,5 +154,6 @@ This shows us that at low traffic, the policies are similar. This makes sense, s
 ### Summary
 
 In this example, we saw how to interpret a problem as a queueing model, and compared two possible scheduling policies under different job arrival rates. 
+
 
 
