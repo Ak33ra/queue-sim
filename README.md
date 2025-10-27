@@ -155,5 +155,10 @@ This shows us that at low traffic, the policies are similar. This makes sense, s
 
 In this example, we saw how to interpret a problem as a queueing model, and compared two possible scheduling policies under different job arrival rates. 
 
+## Testing and Validation
 
+Since these simulations are probabilistic, we can't compare against a known value during unit tests. 
 
+However, by Little's Law (https://en.wikipedia.org/wiki/Little%27s_law), we do know the following formula should hold for any open system: $E[N] = \lambda E[T]$
+
+Because we specify $$\lambda$$ at runtime and collect $$E[N],E[T]$$ as performance metrics, we can compare $$E[N]/E[T]$$ to $$\lambda$$ to give confidence that the simulation is correct.
