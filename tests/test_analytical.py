@@ -6,7 +6,8 @@ simulator is stochastic, we allow a relative tolerance (default 5%).
 """
 
 import pytest
-from queue_sim import QueueSystem, FCFS, SRPT, genExp
+
+from queue_sim import FCFS, QueueSystem, genExp
 
 NUM_EVENTS = 500_000
 RTOL = 0.05  # 5% relative tolerance

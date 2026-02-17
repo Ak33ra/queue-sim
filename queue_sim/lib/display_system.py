@@ -1,6 +1,6 @@
 # display_system.py
 from collections import defaultdict, deque
-import math
+
 
 def _server_label(s, idx):
     # prefer s.name if present, else class name, else index

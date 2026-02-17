@@ -1,11 +1,11 @@
 from queue_sim.lib.rvGen import (
+    Bernoulli,
+    BoundedPareto,
+    Uniform,
+    genBernoulli,
+    genBoundedPareto,
     genExp,
     genUniform,
-    genBoundedPareto,
-    genBernoulli,
-    Uniform,
-    BoundedPareto,
-    Bernoulli
 )
 
 __all__ = [

@@ -13,11 +13,22 @@ license = { text = "MIT" }
 keywords = ["simulation", "queueing", "discrete-event", "scheduling"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "hypothesis>=6"]
+dev = ["pytest>=8", "hypothesis>=6", "ruff>=0.4"]
 
 [project.urls]
 Homepage = "https://github.com/Ak33ra/queue-sim"
 Issues = "https://github.com/Ak33ra/queue-sim/issues"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+extend-exclude = ["example_*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 where = ["."]

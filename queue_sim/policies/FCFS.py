@@ -4,8 +4,9 @@ Jobs are served in arrival order. Intuitive picture: one checkout line,
 one register.
 """
 
-from ..server import Server
 from typing import Callable
+
+from ..server import Server
 
 
 class FCFS(Server):

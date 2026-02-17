@@ -18,7 +18,6 @@ import math
 import random
 from typing import Callable
 
-
 # ---------------------------------------------------------------------------
 # Generator functions (return Callable[[], float])
 # ---------------------------------------------------------------------------

@@ -6,9 +6,10 @@ for minimizing mean response time in a single-server queue, but may
 make globally suboptimal decisions in networks.
 """
 
-from ..server import Server
-from typing import Callable
 import heapq
+from typing import Callable
+
+from ..server import Server
 
 
 class SRPT(Server):

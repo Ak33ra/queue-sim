@@ -5,7 +5,8 @@ validation, seed reproducibility, and the Server ABC contract.
 """
 
 import pytest
-from queue_sim import QueueSystem, FCFS, SRPT, Server, genExp
+
+from queue_sim import FCFS, SRPT, QueueSystem, Server, genExp
 
 
 class TestSeedReproducibility:

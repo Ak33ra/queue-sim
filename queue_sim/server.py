@@ -7,8 +7,8 @@ To create a custom policy, subclass Server and implement nextJob().
 See queue_sim/policies/ for examples.
 """
 
-from abc import ABC, abstractmethod
 import math
+from abc import ABC, abstractmethod
 from collections import deque
 from typing import Callable
 

@@ -9,11 +9,10 @@ nearest event. This allows the simulation to skip idle time rather than
 stepping in real-time increments.
 """
 
-import math
 import random
-from .server import Server
-from .lib import Uniform
 from typing import Callable
+
+from .server import Server
 
 
 class QueueSystem:

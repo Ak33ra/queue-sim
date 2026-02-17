@@ -7,8 +7,10 @@ and verify that the simulated E[N] and E[T] satisfy this identity.
 """
 
 import pytest
-from hypothesis import given, settings, strategies as st
-from queue_sim import QueueSystem, FCFS, SRPT, genExp
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
+from queue_sim import FCFS, SRPT, QueueSystem, genExp
 
 
 @settings(max_examples=10, deadline=None)
