@@ -1,12 +1,20 @@
-from ..server import *
+"""First Come First Served (FCFS) scheduling policy.
 
-'''
-Implements a standard First Come First Served (FCFS) policy
-Intuitive picture: one checkout line, one register
-'''
+Jobs are served in arrival order. Intuitive picture: one checkout line,
+one register.
+"""
+
+from ..server import Server
+from typing import Callable
+
+
 class FCFS(Server):
 
-    def nextJob(self):
+    def __init__(self, sizefn: Callable[[], float]) -> None:
+        super().__init__(sizefn)
+
+    def nextJob(self) -> float:
         return self.genSize()
-    
+
+
 __all__ = ['FCFS']

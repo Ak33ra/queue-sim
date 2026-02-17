@@ -1,48 +1,65 @@
-""" Functions to sample from common probability distributions.
+"""Functions to sample from common probability distributions.
 
-This module contains two types of routines:
+Two flavors:
 
-1. gen functions which return a lambda. On evaluation, they return a value
-from the specified distribution. Useful if you want to generate many values
-using the same distribution or avoid passing in the parameter to helper functions.
+1. **Generator functions** (``gen*``) return a zero-argument callable that
+   produces a fresh sample on each call.  Useful when a distribution is
+   reused many times (e.g. as a ``sizefn`` for a Server).
 
-Example usage:
-exponential = genExp(1.5) # a function of type void -> float
-random_val = exponential() # a float from the Exp(1.5) distribution
+   >>> exponential = genExp(1.5)
+   >>> sample = exponential()          # float ~ Exp(1.5)
 
-2. non-gen functions which directly return a value according to the distribution
+2. **Direct samplers** return a single value immediately.
 
-Example usage:
-random_val = Uniform(2,5) # a float distributed Uniform(2,5)
+   >>> sample = Uniform(2, 5)          # float ~ Unif(2, 5)
 """
 
 import math
 import random
 from typing import Callable
 
-# Generate X ~ Exponential(mu), E[X] = 1/mu
-def genExp(mu : float) -> Callable[[], float] :
-    return lambda: -(1/mu)*math.log(1-random.random())
 
-# X ~ Unif(a,b)
-def genUniform(a : float, b : float) -> Callable[[], float]:
+# ---------------------------------------------------------------------------
+# Generator functions (return Callable[[], float])
+# ---------------------------------------------------------------------------
+
+def genExp(mu: float) -> Callable[[], float]:
+    """X ~ Exponential(mu), with E[X] = 1/mu."""
+    return lambda: -(1 / mu) * math.log(1 - random.random())
+
+
+def genUniform(a: float, b: float) -> Callable[[], float]:
+    """X ~ Uniform(a, b)."""
     d = b - a
-    return lambda: d*random.random() + a
+    return lambda: d * random.random() + a
 
-# X ~ BoundedPareto(k, p, alpha)
-def genBoundedPareto(k, p, alpha):
-    C = (k**alpha)/(1-(k/p)**alpha)
-    return lambda:(-random.random()/C + k**(-alpha))**(-1/alpha)
 
-def genBernoulli(p):
-    return lambda: 1 if (random.random() <= p) else 0
+def genBoundedPareto(k: float, p: float, alpha: float) -> Callable[[], float]:
+    """X ~ BoundedPareto(k, p, alpha)."""
+    C = (k ** alpha) / (1 - (k / p) ** alpha)
+    return lambda: (-random.random() / C + k ** (-alpha)) ** (-1 / alpha)
 
-def Uniform(a,b):
+
+def genBernoulli(p: float) -> Callable[[], int]:
+    """X ~ Bernoulli(p), returns 0 or 1."""
+    return lambda: 1 if random.random() <= p else 0
+
+
+# ---------------------------------------------------------------------------
+# Direct samplers (return a single value)
+# ---------------------------------------------------------------------------
+
+def Uniform(a: float, b: float) -> float:
+    """Return a single sample from Uniform(a, b)."""
     d = b - a
-    return d*random.random() + a
+    return d * random.random() + a
 
-def BoundedPareto(k, p, alpha):
-    return genBoundedPareto(k,p,alpha)()
 
-def Bernoulli(p):
+def BoundedPareto(k: float, p: float, alpha: float) -> float:
+    """Return a single sample from BoundedPareto(k, p, alpha)."""
+    return genBoundedPareto(k, p, alpha)()
+
+
+def Bernoulli(p: float) -> int:
+    """Return a single sample from Bernoulli(p)."""
     return genBernoulli(p)()
