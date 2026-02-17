@@ -1,4 +1,5 @@
 from ..server import *
+from typing import Callable
 import heapq
 
 '''
@@ -10,13 +11,13 @@ Intuitively, if you're at a grocery store and only buying a piece of gum, you wo
 '''
 class SRPT(Server):
 
-    def __init__(self, sizefn = None):
-        if (sizefn == None):
-            super().__init__()
-        else:
-            super().__init__(sizefn)
+    def __init__(self, sizefn: Callable[[], float]):
+        super().__init__(sizefn)
+        self.jobs: list[float] = []
+
+    def reset(self) -> None:
+        super().reset()
         self.jobs = []
-        heapq.heapify(self.jobs)
 
     def nextJob(self):
         return heapq.heappop(self.jobs)

@@ -1,78 +1,77 @@
-import random
+"""Base class for scheduling policies.
+
+Implements core server mechanics: processing jobs, tracking time, and
+reporting event times back to the system driver (QueueSystem).
+
+To create a custom policy, subclass Server and implement nextJob().
+See queue_sim/policies/ for examples.
+"""
+
 from abc import ABC, abstractmethod
 import math
 from collections import deque
-from typing import List, Callable
+from typing import Callable
 
-'''
-Parent class from which specific service policies inherit their methods
 
-Implements the core functionality of a server: processing jobs and reporting event times to the system
+class Server(ABC):
 
-To create a custom policy, create a child of this class and implement the nextJob function,
-which defines the service policy. Define any needed fields in the initializer. See examples in queue_sim/policies.
-'''
+    def __init__(self, sizefn: Callable[[], float]) -> None:
+        self.genSize: Callable[[], float] = sizefn
+        self._init_state()
 
-class Server:
+    def _init_state(self) -> None:
+        """Initialize (or reset) all mutable simulation state."""
+        self.clock: float = 0.0
+        self.arrivalTimes: deque[float] = deque()
+        self.TTNC: float = math.inf
+        self.T: float = 0.0
+        self.num_completions: int = 0
+        self.state: int = 0
 
-    def genExp(mu):
-        return lambda:-(1/mu)*math.log(1-random.random())
+    def reset(self) -> None:
+        """Reset runtime state so the server can be reused across sim() calls."""
+        self._init_state()
 
-    # jobs must be an array where elements are tuples: (arrival time, job size)
-    # optionally supply functions to generate job size, default to Exp(1)
-    def __init__(self, sizefn : Callable[[], float]):
-        self.genSize : Callable[[], float] = sizefn
-        self.clock = 0
-        self.arrivalTimes = deque()
-        self.TTNC = math.inf
-        self.area_N = 0
-        self.T = 0
-        self.N = 0
-        self.num_completions = 0
-        self.state = 0
-
-    # defines the service policy
-    # needs to be implemented by a server class inheritor
     @abstractmethod
-    def nextJob(self) -> float: ...
+    def nextJob(self) -> float:
+        """Return the service time for the next job to process."""
+        ...
 
-    def updateET(self): # works if jobs are served fifo
+    def updateET(self) -> None:
+        """Update running mean response time E[T] via incremental average.
+
+        Only valid for FIFO-ordered policies. Policies that reorder jobs
+        (e.g. SRPT) should override this.
+        """
         t = self.clock - self.arrivalTimes.popleft()
-        self.T = self.T*(self.num_completions-1)/self.num_completions + t/(self.num_completions)
-        
-    def arrival(self): # server just got an arrival
+        n = self.num_completions
+        self.T = self.T * (n - 1) / n + t / n
+
+    def arrival(self) -> None:
+        """Register a new job arrival at this server."""
         self.arrivalTimes.append(self.clock)
-        if (self.state == 0):
+        if self.state == 0:
             self.TTNC = self.nextJob()
         self.state += 1
 
-    def queryTTNC(self):
+    def queryTTNC(self) -> float:
+        """Return time until this server's next completion (inf if idle)."""
         return self.TTNC
 
-    ''' Advances the server's state by timeElapsed.
+    def update(self, time_elapsed: float) -> bool:
+        """Advance server clock by time_elapsed.
 
-    Updates metrics and the time to next completion (TTNC).
-
-    Args: 
-        timeElapsed: time in seconds to advance in the simulation
-    Returns:
-        True if this server has completed a job in the current time step
-        False otherwise
-    '''
-    def update(self, timeElapsed : float):
-        self.TTNC -= timeElapsed
-        self.clock += timeElapsed
-        if (self.TTNC <= 0.0):
+        Returns True if a job completed during this time step.
+        """
+        self.TTNC -= time_elapsed
+        self.clock += time_elapsed
+        if self.TTNC <= 0.0:
             self.state -= 1
-            if (self.state == 0):
-                self.TTNC = math.inf
-            else:
-                self.TTNC = self.nextJob()
+            self.TTNC = self.nextJob() if self.state > 0 else math.inf
             self.num_completions += 1
             self.updateET()
             return True
         return False
-    
+
 
 __all__ = ["Server"]
-

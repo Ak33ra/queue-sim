@@ -45,5 +45,4 @@ def BoundedPareto(k, p, alpha):
     return genBoundedPareto(k,p,alpha)()
 
 def Bernoulli(p):
-
-    genBernoulli(p)()
+    return genBernoulli(p)()
