@@ -42,12 +42,15 @@ class QueueSystem:
     def _verify_transition_matrix(self) -> None:
         if not self.transitionMatrix:
             return
-        n = len(self.transitionMatrix)
-        if n != len(self.transitionMatrix[0]) - 1:
+        n_servers = len(self.servers)
+        n_rows = len(self.transitionMatrix)
+        if n_rows != n_servers or any(
+            len(row) != n_servers + 1 for row in self.transitionMatrix
+        ):
             raise ValueError(
-                "Transition matrix must be n x (n+1), where n = number of servers.\n"
-                "The (n+1)th column is the probability of exiting the system.\n"
-                "Set transitionMatrix to [] for deterministic (tandem) routing."
+                f"Transition matrix must be {n_servers} x {n_servers + 1} "
+                f"(one row per server, last column = exit probability). "
+                f"Got {n_rows} x {len(self.transitionMatrix[0])}."
             )
         for i, row in enumerate(self.transitionMatrix):
             if abs(sum(row) - 1.0) > 1e-9:
