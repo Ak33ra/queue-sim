@@ -23,6 +23,7 @@ public:
 
     explicit Server(Distribution sizeDist) : sizeDist(std::move(sizeDist)) {}
     virtual ~Server() = default;
+    virtual std::shared_ptr<Server> clone() const = 0;
 
     void setRNG(std::mt19937_64 *r) { rng = r; }
 

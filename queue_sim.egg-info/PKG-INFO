@@ -18,165 +18,124 @@ Dynamic: license-file
 
 # queue-sim
 
-A lightweight **discrete-event simulation engine** for queueing systems and scheduling policies.  
-Supports modular servers (e.g., **FCFS**, **SRPT with preemption**) that can be chained into larger queueing networks.  
-Designed for studying performance metrics such as **sojourn time (E[T])**, **throughput**, and **utilization** without unnecessary per-job bookkeeping.
+A discrete-event simulation engine for queueing networks, with a C++ hot-path backend exposed to Python via pybind11.
 
-This project is mostly for fun, but if you're looking at this for some reason, feedback on features, coding style, etc would be greatly appreciated.
+Supports pluggable scheduling policies (FCFS, SRPT), multi-server tandem and feedback networks with probabilistic routing, and statistically rigorous output analysis via independent replications with confidence intervals.
 
-## Features
-- Global event calendar with deterministic tie-breaking for simultaneous arrivals/completions  
-- Extensible `Server` base class with plug-in scheduling policies (FIFO, SRPT, …)  
-- Support for multi-server tandem systems and internal job transfers  
-- Efficient collection of statistics using time-averaged state (via Little’s Law)
-- Probabilistic routing
-- Example experiments (e.g., tandem FIFO → SRPT) in `examples/`
+## Architecture
 
-## In Progress
-- Commandline ASCII system display
-- Multiservers
+```
+queue_sim/          Python frontend — system construction, replication logic, statistics
+csrc/               C++ backend — event loop, servers, distributions (pybind11)
+tests/              64 tests — analytical validation, Little's law, property-based (Hypothesis)
+```
 
-## TODO
-- Multiple servers with external arrivals
-- Support for closed networks and associated metrics
-- Finite-sized queues
-- Support for server load under non-Poisson arrivals
-- Multiserver jobs
-- Classed jobs
-- Conditional routing (e.g. sizes less than C go to server 1)
-- Utilities for metric gathering and plotting in multiple situations (e.g. system.test_system(lambdas))
+**Dual backend.** The same `QueueSystem` interface is available in pure Python and as a compiled C++ extension. The C++ event loop releases the GIL during simulation, enabling concurrent execution.
+
+**Server abstraction.** Scheduling policies inherit from an abstract `Server` base class and implement arrival/completion logic independently. Current policies:
+- **FCFS** — first-come first-served
+- **SRPT** — shortest remaining processing time (preemptive)
+
+**Statistical output.** `replicate()` runs N independent replications with deterministic per-replication seeds (SplitMix64), optional warmup, and returns t-distribution confidence intervals — no scipy dependency.
 
 ## Installation
-### Latest From GitHub
-`pip install "git+https://github.com/Ak33ra/queue-sim.git"`
 
-### Dev Copy (editable)
+```bash
+pip install "git+https://github.com/Ak33ra/queue-sim.git"
 ```
+
+For development (editable install, compiles C++ extension):
+
+```bash
 git clone https://github.com/Ak33ra/queue-sim.git
 cd queue-sim
-pip install -e .
+pip install -e ".[dev]"
 ```
 
-## Usage
-After installation, import with something like:
+Requires a C++17 compiler and Python >= 3.9.
+
+## Quick Start
+
 ```python
-import queue_sim as qs
+from queue_sim import QueueSystem, FCFS, SRPT, genExp
+
+# M/M/1: Poisson arrivals (rate 1), exponential service (rate 2)
+system = QueueSystem([FCFS(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+
+# Single run — returns (E[N], E[T])
+N, T = system.sim(num_events=10**6, seed=42)
+
+# Multiple replications — returns ReplicationResult with CIs
+result = system.replicate(n_replications=30, num_events=10**6, seed=42)
+print(f"E[T] = {result.mean_T:.4f}  95% CI: [{result.ci_T[0]:.4f}, {result.ci_T[1]:.4f}]")
 ```
 
-## Usage Example
+### Tandem Network
+
 ```python
-from queue_sim import *
-
-lambdas = [1.0, 1.2, 1.4, 1.6, 1.8]
-
-for l in lambdas:
-    # create two servers with different scheduling policies
-    # at both servers, job sizes distrbuted Exponential(2.0)
-    fifo = FCFS(sizefn = genExp(2.0))
-    srpt = SRPT(sizefn=genExp(2.0))
-
-    # initialize the system with interarrival rate distributed Exponential(l)
-    system = QueueSystem([fifo, srpt], arrivalfn = genExp(l))
-
-    # simulate and gather mean number of jobs (N) and response time (T)
-    N,T= system.sim()
-    print(f"E[N]: {N}, E[T]: {T}"
+# Two servers in series: FCFS -> SRPT
+fifo = FCFS(sizefn=genExp(2.0))
+srpt = SRPT(sizefn=genExp(2.0))
+system = QueueSystem([fifo, srpt], arrivalfn=genExp(1.0))
+N, T = system.sim(num_events=10**6, seed=42)
 ```
-Run with `python {filename}.py`
 
-## Basic Situation Analysis - Job Scheduling Comparison
-You might be wondering, "Why should I use tools like this?"
+### Probabilistic Routing
 
-The short answer is that we can get an idea of how our system will perform, before investing any money and time into building it. Sounds nice, right? We try to demonstrate this in the following (very simple) scenario to give you an idea of how queueing theory and simulations can help design systems. More examples to come!
-
-Suppose we have exponentially distributed arrival and service times, and we want to
-minimize the mean response time of all of our customers (who likes waiting?). A natural question to ask is
-"What is the optimal service order?"
-
-In this example, we'll compare first come first serve (FCFS) and shortest remaining processing time (SRPT),
-and use our simulation do decide which one to use in our server. In general, if you're considering different scheduling policies, gathering simulated metrics can help make a more informed decision about which ones to implement and live test.
-
-### Code Setup
-This code can be found in full in the `example_schedule_comparison.py` file.
-
-Since we have a stream of customers arriving to a single server, we'll set up our system accordingly. First define our mean arrival rate and server speed:
 ```python
-LAMBDA = 10 # arrival rate in jobs per sec
-MU = 12 # server speed in jobs per sec
+# Feedback network: 30% of jobs return to server 0 after completion
+system = QueueSystem([FCFS(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+#                     to server 0  |  exit
+system.updateTransitionMatrix([[0.3,         0.7]])
+N, T = system.sim(num_events=10**6, seed=42)
 ```
-
-Then, initialize the two systems we want to compare--single server FCFS and SRPT.
-```python
-''' --- FCFS --- '''
-fcfs_system = QueueSystem([FCFS(sizefn = genExp(MU))], arrivalfn = genExp(LAMBDA))
-
-''' --- SRPT ---'''
-srpt_system = QueueSystem([SRPT(sizefn = genExp(MU))], arrivalfn = genExp(LAMBDA))
-```
-
-Run the simulations and collect mean number of jobs and respone time metrics:
-```python
-N_fcfs,T_fcfs = fcfs_system.sim()
-N_srpt,T_srpt = srpt_system.sim()
-```
-
-Plot them for a visual comparison:
-```python
-x_axis = ['FCFS', 'SRPT']
-y_axis = [T_fcfs, T_srpt]
-plt.bar(x_axis, y_axis, color='skyblue', edgecolor='black')
-plt.ylabel('Mean Response Time')
-plt.xlabel('Scheduling Policy')
-plt.title('Comparison of FCFS vs SRPT')
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.show()
-```
-
-The result:
-
-![FCFS vs SRPT response time in M/M/1](images/FCFSvsSRPT_MM1.png)
-
-### Further Analysis
-This is great and all, but we only experimented with one possible arrival rate, and thus server load. But what if traffic is light, and there aren't very many arrivals? Or what if traffic is extremely heavy?
-
-So let's compare under multiple arrival rates:
-```python
-ARRIVAL_RATES = [1.0, 3.0, 5.0, 7.0, 10.0]
-MU = 10.0
-
-ratios = []
-
-for l in ARRIVAL_RATES:
-    fcfs_system = QueueSystem([FCFS(sizefn = genExp(MU))], arrivalfn = genExp(l))
-    srpt_system = QueueSystem([SRPT(sizefn = genExp(MU))], arrivalfn = genExp(l))
-    N_fcfs,T_fcfs = fcfs_system.sim()
-    N_srpt,T_srpt = srpt_system.sim()
-    # compare the ratio of response times
-    ratios.append(T_fcfs/T_srpt)
-
-
-plt.figure()
-x_axis = ARRIVAL_RATES
-y_axis = ratios
-plt.plot(ARRIVAL_RATES, ratios, marker='o', linewidth=2, color='steelblue')
-plt.xlabel('Arrival Rate λ')
-plt.ylabel('E[T]_FCFS / E[T]_SRPT')
-plt.title('Relative response time vs arrival rate')
-plt.grid(True, linestyle='--', alpha=0.7)
-plt.show()
-```
-![ratio of FCFS to SRPT response time in M/M/1](images/FCFSvsSRPTratio.png)
-
-This shows us that at low traffic, the policies are similar. This makes sense, since when the server is mostly empty, the scheduling policy shouldn't have much of an effect (there isn't much queueing). However we see a spike in the ratio when the arrival rate is 10 jobs per sec, very close to the server speed of 12 jobs per sec, indicating that at high load, SRPT strongly outperforms FCFS.
-
-### Summary
-
-In this example, we saw how to interpret a problem as a queueing model, and compared two possible scheduling policies under different job arrival rates. 
 
 ## Testing and Validation
 
-Since these simulations are probabilistic, we can't compare against a known value during unit tests. 
+```bash
+pytest tests/ -v
+```
 
-However, by Little's Law (https://en.wikipedia.org/wiki/Little%27s_law), we do know the following formula should hold for any open system: $E[N] = \lambda E[T]$
+Tests validate simulation output against closed-form results:
 
-Because we specify $$\lambda$$ at runtime and collect $$E[N],E[T]$$ as performance metrics, we can compare $$E[N]/E[T]$$ to $$\lambda$$ to give confidence that the simulation is correct.
+- **Analytical (M/M/1):** E[T] = 1/(mu - lambda), E[N] = rho/(1 - rho), checked within 5% relative tolerance across multiple load levels
+- **Little's Law:** E[N] = lambda * E[T] verified for both FCFS and SRPT
+- **Confidence intervals:** 95% CI from `replicate()` covers the true M/M/1 E[T] on both Python and C++ backends
+- **Property-based (Hypothesis):** fuzz tests for edge cases and invariant checking
+- **Seed determinism:** identical seeds produce identical results; verified on both backends
+
+## Example: Scheduling Policy Comparison
+
+See `example_schedule_comparison.py` for a full worked example comparing FCFS vs SRPT under varying load.
+
+At low load the policies perform similarly, but as utilization approaches 1, SRPT significantly outperforms FCFS in mean response time:
+
+| | FCFS vs SRPT (rho -> 1) |
+|---|---|
+| ![FCFS vs SRPT response time](images/FCFSvsSRPT_MM1.png) | ![Ratio across arrival rates](images/FCFSvsSRPTratio.png) |
+
+## Project Structure
+
+```
+queue_sim/
+  __init__.py             Public API and exports
+  queueSystem.py          QueueSystem — sim() and replicate()
+  results.py              ReplicationResult, CI computation, seed derivation
+  server.py               Abstract Server base class
+  policies/
+    FCFS.py               First-come first-served
+    SRPT.py               Shortest remaining processing time
+  lib/
+    rvGen.py              Distribution samplers (Exp, Uniform, BoundedPareto)
+
+csrc/
+  include/queue_sim/      C++ headers (distributions, server, FCFS, SRPT, queue_system)
+  src/bindings.cpp        pybind11 module definition
+
+tests/                    pytest suite (analytical, Little's law, replications, C++ backend)
+benchmarks/               Performance benchmarks
+```
+
+## License
+
+MIT

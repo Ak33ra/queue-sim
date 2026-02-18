@@ -103,6 +103,7 @@ PYBIND11_MODULE(_queue_sim_cpp, m) {
              py::arg("num_events") = 1000000,
              py::arg("seed") = -1,
              py::arg("warmup") = 0,
+             py::arg("n_threads") = 0,
              py::call_guard<py::gil_scoped_release>())
         .def("addServer", &QueueSystem::addServer)
         .def("updateTransitionMatrix", &QueueSystem::updateTransitionMatrix)

@@ -77,3 +77,76 @@ class TestCppWarmup:
         n1, t1 = sys.sim(num_events=10_000, seed=42, warmup=0)
         n2, t2 = sys.sim(num_events=10_000, seed=42, warmup=5000)
         assert t1 != t2
+
+
+class TestCppParallelReplicate:
+
+    def test_parallel_matches_sequential(self) -> None:
+        """n_threads=1 vs n_threads=4 with same seed -> identical results."""
+        sys = _make_mm1_cpp()
+        r1 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=1)
+        r2 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=4)
+        assert list(r1.raw_T) == list(r2.raw_T)
+        assert list(r1.raw_N) == list(r2.raw_N)
+
+    def test_thread_capping(self) -> None:
+        """n_threads=16 with n_replications=3 -> doesn't crash."""
+        sys = _make_mm1_cpp()
+        raw = sys.replicate(n_replications=3, num_events=10_000, seed=42, n_threads=16)
+        assert len(raw.raw_T) == 3
+
+    def test_default_threads(self) -> None:
+        """n_threads=0 (default) -> works."""
+        sys = _make_mm1_cpp()
+        raw = sys.replicate(n_replications=5, num_events=10_000, seed=42)
+        assert len(raw.raw_T) == 5
+
+    def test_warmup_parallel(self) -> None:
+        """Warmup + parallel -> matches sequential."""
+        sys = _make_mm1_cpp()
+        r1 = sys.replicate(
+            n_replications=10, num_events=10_000, seed=42, warmup=1000, n_threads=1,
+        )
+        r2 = sys.replicate(
+            n_replications=10, num_events=10_000, seed=42, warmup=1000, n_threads=4,
+        )
+        assert list(r1.raw_T) == list(r2.raw_T)
+
+    def test_tandem_parallel(self) -> None:
+        """Tandem queue (multi-server) -> parallel matches sequential."""
+        s1 = _queue_sim_cpp.FCFS(_queue_sim_cpp.ExponentialDist(3.0))
+        s2 = _queue_sim_cpp.FCFS(_queue_sim_cpp.ExponentialDist(3.0))
+        tm = [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+        sys = _queue_sim_cpp.QueueSystem(
+            [s1, s2], _queue_sim_cpp.ExponentialDist(1.0), tm,
+        )
+        r1 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=1)
+        r2 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=4)
+        assert list(r1.raw_T) == list(r2.raw_T)
+        assert list(r1.raw_N) == list(r2.raw_N)
+
+    def test_srpt_parallel(self) -> None:
+        """SRPT -> parallel matches sequential (verifies SRPT clone)."""
+        server = _queue_sim_cpp.SRPT(_queue_sim_cpp.ExponentialDist(2.0))
+        sys = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(1.0),
+        )
+        r1 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=1)
+        r2 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=4)
+        assert list(r1.raw_T) == list(r2.raw_T)
+
+    def test_parallel_ci_covers_analytical(self) -> None:
+        """Parallel CI still covers analytical M/M/1 E[T]."""
+        lam, mu = 1.0, 2.0
+        expected_T = 1.0 / (mu - lam)
+        sys = _make_mm1_cpp(lam, mu)
+        raw = sys.replicate(
+            n_replications=30, num_events=200_000, seed=42, n_threads=4,
+        )
+        result = _build_replication_result(
+            tuple(raw.raw_N), tuple(raw.raw_T), 0.95,
+        )
+        lo, hi = result.ci_T
+        assert lo <= expected_T <= hi, (
+            f"95% CI [{lo:.4f}, {hi:.4f}] does not contain E[T]={expected_T}"
+        )

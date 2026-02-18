@@ -8,6 +8,7 @@
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -60,98 +61,18 @@ public:
     std::pair<double, double> sim(int num_events = 1000000,
                                   int seed = -1,
                                   int warmup = 0) {
-        std::mt19937_64 rng;
+        verifyTransitionMatrix();
+        uint64_t resolved_seed;
         if (seed >= 0) {
-            rng.seed(static_cast<std::mt19937_64::result_type>(seed));
+            resolved_seed = static_cast<uint64_t>(seed);
         } else {
             std::random_device rd;
-            rng.seed(rd());
+            resolved_seed = static_cast<uint64_t>(rd()) |
+                            (static_cast<uint64_t>(rd()) << 32);
         }
-
-        verifyTransitionMatrix();
-
-        for (auto &s : servers) {
-            s->setRNG(&rng);
-            s->reset();
-        }
-
-        int num_completions = 0;
-        double ttna = sample(arrivalDist, rng);  // time to next arrival
-        int state = 0;        // total jobs in the network
-
-        // -- warmup phase (no accumulation) ----------------------------------
-        if (warmup > 0) {
-            int warmup_done = 0;
-            while (warmup_done < warmup) {
-                double ttnc = minTTNC();
-                double ttne = std::min(ttnc, ttna);
-                std::vector<int> completed;
-                for (int i = 0; i < static_cast<int>(servers.size()); ++i) {
-                    if (servers[i]->update(ttne)) {
-                        completed.push_back(i);
-                    }
-                }
-                for (int idx : completed) {
-                    int dest = routeJob(idx, rng);
-                    if (dest >= static_cast<int>(servers.size())) {
-                        warmup_done += 1;
-                        state -= 1;
-                    } else {
-                        servers[dest]->arrival();
-                    }
-                }
-                if (ttna <= ttnc) {
-                    state += 1;
-                    servers[0]->arrival();
-                    ttna = sample(arrivalDist, rng);
-                } else {
-                    ttna -= ttne;
-                }
-            }
-        }
-
-        // -- measurement phase -----------------------------------------------
-        double area_n = 0.0;
-        double clock = 0.0;
-
-        while (num_completions < num_events) {
-            double ttnc = minTTNC();
-            double ttne = std::min(ttnc, ttna);
-
-            clock += ttne;
-            area_n += static_cast<double>(state) * ttne;
-
-            // Advance all servers, collect indices of those that completed
-            std::vector<int> completed;
-            for (int i = 0; i < static_cast<int>(servers.size()); ++i) {
-                if (servers[i]->update(ttne)) {
-                    completed.push_back(i);
-                }
-            }
-
-            // Route completed jobs
-            for (int idx : completed) {
-                int dest = routeJob(idx, rng);
-                if (dest >= static_cast<int>(servers.size())) {
-                    num_completions += 1;
-                    state -= 1;
-                } else {
-                    servers[dest]->arrival();
-                }
-            }
-
-            // Handle arrival if it fires at or before the next completion
-            if (ttna <= ttnc) {
-                state += 1;
-                servers[0]->arrival();
-                ttna = sample(arrivalDist, rng);
-            } else {
-                ttna -= ttne;
-            }
-        }
-
-        double mean_n = area_n / clock;
-        double mean_t = area_n / std::max(1, num_completions);
+        auto [mean_n, mean_t] = sim_internal(
+            servers, arrivalDist, transitionMatrix, num_events,
+            resolved_seed, warmup);
         T = mean_t;
         return {mean_n, mean_t};
     }
@@ -159,7 +80,8 @@ public:
     ReplicationRawResult replicate(int n_replications = 30,
                                    int num_events = 1000000,
                                    int seed = -1,
-                                   int warmup = 0) {
+                                   int warmup = 0,
+                                   int n_threads = 0) {
         uint64_t base_seed;
         if (seed >= 0) {
             base_seed = static_cast<uint64_t>(seed);
@@ -169,16 +91,57 @@ public:
                         (static_cast<uint64_t>(rd()) << 32);
         }
 
-        ReplicationRawResult result;
-        result.raw_N.reserve(n_replications);
-        result.raw_T.reserve(n_replications);
+        verifyTransitionMatrix();
 
-        for (int i = 0; i < n_replications; ++i) {
-            uint64_t rep_seed = derive_seed(base_seed, static_cast<uint64_t>(i));
-            auto [n, t] = sim(num_events, static_cast<int>(rep_seed & 0x7FFFFFFF), warmup);
-            result.raw_N.push_back(n);
-            result.raw_T.push_back(t);
+        int actual_threads = n_threads;
+        if (actual_threads <= 0) {
+            actual_threads = static_cast<int>(
+                std::thread::hardware_concurrency());
+            if (actual_threads <= 0) actual_threads = 1;
         }
+        actual_threads = std::min(actual_threads, n_replications);
+
+        ReplicationRawResult result;
+        result.raw_N.resize(n_replications);
+        result.raw_T.resize(n_replications);
+
+        auto worker = [&](int start, int end) {
+            // Clone servers once for this thread
+            std::vector<std::shared_ptr<Server>> local_servers;
+            local_servers.reserve(servers.size());
+            for (const auto& s : servers) {
+                local_servers.push_back(s->clone());
+            }
+
+            for (int i = start; i < end; ++i) {
+                uint64_t rep_seed =
+                    derive_seed(base_seed, static_cast<uint64_t>(i));
+                auto [n, t] = sim_internal(
+                    local_servers, arrivalDist, transitionMatrix,
+                    num_events, rep_seed, warmup);
+                result.raw_N[i] = n;
+                result.raw_T[i] = t;
+            }
+        };
+
+        if (actual_threads == 1) {
+            worker(0, n_replications);
+        } else {
+            std::vector<std::thread> threads;
+            threads.reserve(actual_threads);
+            int chunk = n_replications / actual_threads;
+            int remainder = n_replications % actual_threads;
+            int start = 0;
+            for (int t = 0; t < actual_threads; ++t) {
+                int end = start + chunk + (t < remainder ? 1 : 0);
+                threads.emplace_back(worker, start, end);
+                start = end;
+            }
+            for (auto& th : threads) {
+                th.join();
+            }
+        }
+
         return result;
     }
 
@@ -211,28 +174,123 @@ private:
         }
     }
 
-    double minTTNC() const {
+    static double minTTNC(
+            const std::vector<std::shared_ptr<Server>>& srvs) {
         double m = std::numeric_limits<double>::infinity();
-        for (const auto &s : servers) {
+        for (const auto &s : srvs) {
             m = std::min(m, s->queryTTNC());
         }
         return m;
     }
 
-    int routeJob(int server_idx, std::mt19937_64 &rng) {
-        if (transitionMatrix.empty()) {
+    static int routeJob(int server_idx, std::mt19937_64 &rng,
+                         const std::vector<std::vector<double>>& tm,
+                         int n_servers) {
+        if (tm.empty()) {
             return server_idx + 1;
         }
         std::uniform_real_distribution<double> u(0.0, 1.0);
         double r = u(rng);
         double acc = 0.0;
-        const auto &row = transitionMatrix[server_idx];
+        const auto &row = tm[server_idx];
         for (int i = 0; i < static_cast<int>(row.size()); ++i) {
             acc += row[i];
             if (r < acc) return i;
         }
-        // Numerical safety: fall through → exit
-        return static_cast<int>(servers.size());
+        // Numerical safety: fall through -> exit
+        return n_servers;
+    }
+
+    static std::pair<double, double> sim_internal(
+            std::vector<std::shared_ptr<Server>>& srvs,
+            Distribution arrival_dist,
+            const std::vector<std::vector<double>>& tm,
+            int num_events,
+            uint64_t seed,
+            int warmup) {
+        std::mt19937_64 rng(seed);
+        int n_servers = static_cast<int>(srvs.size());
+
+        for (auto &s : srvs) {
+            s->setRNG(&rng);
+            s->reset();
+        }
+
+        int num_completions = 0;
+        double ttna = sample(arrival_dist, rng);
+        int state = 0;
+
+        // -- warmup phase (no accumulation) ----------------------------------
+        if (warmup > 0) {
+            int warmup_done = 0;
+            while (warmup_done < warmup) {
+                double ttnc = minTTNC(srvs);
+                double ttne = std::min(ttnc, ttna);
+                std::vector<int> completed;
+                for (int i = 0; i < n_servers; ++i) {
+                    if (srvs[i]->update(ttne)) {
+                        completed.push_back(i);
+                    }
+                }
+                for (int idx : completed) {
+                    int dest = routeJob(idx, rng, tm, n_servers);
+                    if (dest >= n_servers) {
+                        warmup_done += 1;
+                        state -= 1;
+                    } else {
+                        srvs[dest]->arrival();
+                    }
+                }
+                if (ttna <= ttnc) {
+                    state += 1;
+                    srvs[0]->arrival();
+                    ttna = sample(arrival_dist, rng);
+                } else {
+                    ttna -= ttne;
+                }
+            }
+        }
+
+        // -- measurement phase -----------------------------------------------
+        double area_n = 0.0;
+        double clock = 0.0;
+
+        while (num_completions < num_events) {
+            double ttnc = minTTNC(srvs);
+            double ttne = std::min(ttnc, ttna);
+
+            clock += ttne;
+            area_n += static_cast<double>(state) * ttne;
+
+            std::vector<int> completed;
+            for (int i = 0; i < n_servers; ++i) {
+                if (srvs[i]->update(ttne)) {
+                    completed.push_back(i);
+                }
+            }
+
+            for (int idx : completed) {
+                int dest = routeJob(idx, rng, tm, n_servers);
+                if (dest >= n_servers) {
+                    num_completions += 1;
+                    state -= 1;
+                } else {
+                    srvs[dest]->arrival();
+                }
+            }
+
+            if (ttna <= ttnc) {
+                state += 1;
+                srvs[0]->arrival();
+                ttna = sample(arrival_dist, rng);
+            } else {
+                ttna -= ttne;
+            }
+        }
+
+        double mean_n = area_n / clock;
+        double mean_t = area_n / std::max(1, num_completions);
+        return {mean_n, mean_t};
     }
 };
 
