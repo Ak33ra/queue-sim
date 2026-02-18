@@ -34,22 +34,22 @@ PYBIND11_MODULE(_queue_sim_cpp, m) {
         .def_readonly("num_completions", &Server::num_completions)
         .def_readonly("state", &Server::state)
         .def_readonly("clock", &Server::clock)
+        .def_readonly("num_servers", &Server::num_servers)
         .def("queryTTNC", &Server::queryTTNC);
 
     // -- FCFS ----------------------------------------------------------------
 
     py::class_<FCFS, Server, std::shared_ptr<FCFS>>(m, "FCFS")
-        .def(py::init([](py::object dist) -> FCFS {
-            // Accept any of the three distribution types
+        .def(py::init([](py::object dist, int num_servers) -> FCFS {
             if (py::isinstance<ExponentialDist>(dist))
-                return FCFS(dist.cast<ExponentialDist>());
+                return FCFS(dist.cast<ExponentialDist>(), num_servers);
             if (py::isinstance<UniformDist>(dist))
-                return FCFS(dist.cast<UniformDist>());
+                return FCFS(dist.cast<UniformDist>(), num_servers);
             if (py::isinstance<BoundedParetoDist>(dist))
-                return FCFS(dist.cast<BoundedParetoDist>());
+                return FCFS(dist.cast<BoundedParetoDist>(), num_servers);
             throw py::type_error(
                 "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
-        }), py::arg("sizefn"));
+        }), py::arg("sizefn"), py::arg("num_servers") = 1);
 
     // -- SRPT ----------------------------------------------------------------
 
@@ -68,16 +68,16 @@ PYBIND11_MODULE(_queue_sim_cpp, m) {
     // -- PS ------------------------------------------------------------------
 
     py::class_<PS, Server, std::shared_ptr<PS>>(m, "PS")
-        .def(py::init([](py::object dist) -> PS {
+        .def(py::init([](py::object dist, int num_servers) -> PS {
             if (py::isinstance<ExponentialDist>(dist))
-                return PS(dist.cast<ExponentialDist>());
+                return PS(dist.cast<ExponentialDist>(), num_servers);
             if (py::isinstance<UniformDist>(dist))
-                return PS(dist.cast<UniformDist>());
+                return PS(dist.cast<UniformDist>(), num_servers);
             if (py::isinstance<BoundedParetoDist>(dist))
-                return PS(dist.cast<BoundedParetoDist>());
+                return PS(dist.cast<BoundedParetoDist>(), num_servers);
             throw py::type_error(
                 "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
-        }), py::arg("sizefn"));
+        }), py::arg("sizefn"), py::arg("num_servers") = 1);
 
     // -- FB ------------------------------------------------------------------
 

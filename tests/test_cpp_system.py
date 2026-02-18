@@ -135,6 +135,68 @@ class TestFB:
         assert r1 == r2
 
 
+class TestMultiServer:
+
+    def test_fcfs_k2_runs(self) -> None:
+        server = _queue_sim_cpp.FCFS(
+            _queue_sim_cpp.ExponentialDist(1.0), num_servers=2
+        )
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(1.0)
+        )
+        N, T = system.sim(num_events=50_000, seed=42)
+        assert N > 0
+        assert T > 0
+
+    def test_ps_k2_runs(self) -> None:
+        server = _queue_sim_cpp.PS(
+            _queue_sim_cpp.ExponentialDist(1.0), num_servers=2
+        )
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(1.0)
+        )
+        N, T = system.sim(num_events=50_000, seed=42)
+        assert N > 0
+        assert T > 0
+
+    def test_fcfs_k2_seed_determinism(self) -> None:
+        def make():
+            server = _queue_sim_cpp.FCFS(
+                _queue_sim_cpp.ExponentialDist(1.0), num_servers=2
+            )
+            return _queue_sim_cpp.QueueSystem(
+                [server], _queue_sim_cpp.ExponentialDist(1.0)
+            )
+
+        r1 = make().sim(num_events=10_000, seed=42)
+        r2 = make().sim(num_events=10_000, seed=42)
+        assert r1 == r2
+
+    def test_explicit_k1_matches_default(self) -> None:
+        def make(k=None):
+            if k is not None:
+                server = _queue_sim_cpp.FCFS(
+                    _queue_sim_cpp.ExponentialDist(2.0), num_servers=k
+                )
+            else:
+                server = _queue_sim_cpp.FCFS(
+                    _queue_sim_cpp.ExponentialDist(2.0)
+                )
+            return _queue_sim_cpp.QueueSystem(
+                [server], _queue_sim_cpp.ExponentialDist(1.0)
+            )
+
+        r1 = make().sim(num_events=10_000, seed=42)
+        r2 = make(k=1).sim(num_events=10_000, seed=42)
+        assert r1 == r2
+
+    def test_num_servers_readonly(self) -> None:
+        server = _queue_sim_cpp.FCFS(
+            _queue_sim_cpp.ExponentialDist(2.0), num_servers=3
+        )
+        assert server.num_servers == 3
+
+
 class TestDistributions:
     """Verify distribution types can be constructed."""
 

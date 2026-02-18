@@ -13,10 +13,11 @@ public:
     std::vector<double> remaining;
     std::vector<double> jobArrivals;
 
-    explicit PS(Distribution sizeDist) : Server(std::move(sizeDist)) {}
+    explicit PS(Distribution sizeDist, int num_servers = 1)
+        : Server(std::move(sizeDist), num_servers) {}
 
     std::shared_ptr<Server> clone() const override {
-        return std::make_shared<PS>(sizeDist);
+        return std::make_shared<PS>(sizeDist, num_servers);
     }
 
     void reset() override {
@@ -45,7 +46,8 @@ public:
         clock += dt;
         if (state == 0) return false;
 
-        double work = dt / state;
+        // rate_per_job = min(k, n) / n  where k = num_servers, n = state
+        double work = dt * std::min(num_servers, state) / state;
         for (auto &r : remaining) r -= work;
 
         if (TTNC <= 0.0) {
@@ -72,7 +74,8 @@ private:
         }
         double min_rem =
             *std::min_element(remaining.begin(), remaining.end());
-        TTNC = min_rem * state;
+        // TTNC = min_rem / rate_per_job = min_rem * state / min(k, state)
+        TTNC = min_rem * state / std::min(num_servers, state);
     }
 };
 

@@ -15,8 +15,9 @@ from typing import Callable
 
 class Server(ABC):
 
-    def __init__(self, sizefn: Callable[[], float]) -> None:
+    def __init__(self, sizefn: Callable[[], float], num_servers: int = 1) -> None:
         self.genSize: Callable[[], float] = sizefn
+        self.num_servers: int = num_servers
         self._init_state()
 
     def _init_state(self) -> None:

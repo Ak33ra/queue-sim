@@ -1,8 +1,10 @@
 """Processor Sharing (PS) scheduling policy.
 
-All jobs in service share the server equally — each of the n jobs
-receives rate 1/n.  For M/M/1, E[T] = 1/(mu - lambda), the same as
-FCFS, since exponential service times are memoryless.
+All jobs in service share the server(s) equally. With k servers and n jobs:
+- n <= k: each job gets rate 1 (dedicated server)
+- n > k:  each job gets rate k/n
+
+For k=1: rate = 1/n, identical to standard M/G/1-PS.
 """
 
 import math
@@ -13,8 +15,8 @@ from ..server import Server
 
 class PS(Server):
 
-    def __init__(self, sizefn: Callable[[], float]) -> None:
-        super().__init__(sizefn)
+    def __init__(self, sizefn: Callable[[], float], num_servers: int = 1) -> None:
+        super().__init__(sizefn, num_servers)
         self.remaining: list[float] = []
         self.jobArrivals: list[float] = []
 
@@ -42,7 +44,7 @@ class PS(Server):
         if self.state == 0:
             return False
 
-        work = time_elapsed / self.state
+        work = time_elapsed * min(self.num_servers, self.state) / self.state
         for i in range(len(self.remaining)):
             self.remaining[i] -= work
 
@@ -63,7 +65,8 @@ class PS(Server):
         if not self.remaining:
             self.TTNC = math.inf
             return
-        self.TTNC = min(self.remaining) * self.state
+        min_rem = min(self.remaining)
+        self.TTNC = min_rem * self.state / min(self.num_servers, self.state)
 
 
 __all__ = ['PS']

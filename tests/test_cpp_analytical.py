@@ -7,6 +7,8 @@ import pytest
 
 _queue_sim_cpp = pytest.importorskip("_queue_sim_cpp")
 
+from .helpers import mmk_expected_T  # noqa: E402
+
 NUM_EVENTS = 500_000
 RTOL = 0.05  # 5% relative tolerance
 
@@ -129,5 +131,45 @@ class TestMM1FBCpp:
         N, T = system.sim(num_events=NUM_EVENTS, seed=42)
         assert T == pytest.approx(expected_T, rel=RTOL), (
             f"lam={lam}, mu={mu}: simulated E[T]={T:.4f}, "
+            f"expected={expected_T:.4f}"
+        )
+
+
+class TestMMkCpp:
+    """M/M/k via C++ backend: validates FCFS and PS against Erlang-C."""
+
+    @pytest.mark.parametrize("lam,mu,k,expected_T", [
+        (1.0, 1.0, 2, 4.0 / 3.0),
+        (1.5, 1.0, 2, 16.0 / 7.0),
+    ])
+    def test_fcfs_mmk(self, lam: float, mu: float, k: int, expected_T: float) -> None:
+        assert expected_T == pytest.approx(mmk_expected_T(lam, mu, k), rel=1e-10)
+        server = _queue_sim_cpp.FCFS(
+            _queue_sim_cpp.ExponentialDist(mu), num_servers=k
+        )
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(lam)
+        )
+        N, T = system.sim(num_events=NUM_EVENTS, seed=42)
+        assert T == pytest.approx(expected_T, rel=RTOL), (
+            f"M/M/{k} FCFS: lam={lam}, mu={mu}: simulated E[T]={T:.4f}, "
+            f"expected={expected_T:.4f}"
+        )
+
+    @pytest.mark.parametrize("lam,mu,k,expected_T", [
+        (1.0, 1.0, 2, 4.0 / 3.0),
+        (1.5, 1.0, 2, 16.0 / 7.0),
+    ])
+    def test_ps_mmk(self, lam: float, mu: float, k: int, expected_T: float) -> None:
+        assert expected_T == pytest.approx(mmk_expected_T(lam, mu, k), rel=1e-10)
+        server = _queue_sim_cpp.PS(
+            _queue_sim_cpp.ExponentialDist(mu), num_servers=k
+        )
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(lam)
+        )
+        N, T = system.sim(num_events=NUM_EVENTS, seed=42)
+        assert T == pytest.approx(expected_T, rel=RTOL), (
+            f"M/M/{k} PS: lam={lam}, mu={mu}: simulated E[T]={T:.4f}, "
             f"expected={expected_T:.4f}"
         )

@@ -21,7 +21,10 @@ public:
     int state = 0;
     std::deque<double> arrivalTimes;
 
-    explicit Server(Distribution sizeDist) : sizeDist(std::move(sizeDist)) {}
+    int num_servers;
+
+    explicit Server(Distribution sizeDist, int num_servers = 1)
+        : sizeDist(std::move(sizeDist)), num_servers(num_servers) {}
     virtual ~Server() = default;
     virtual std::shared_ptr<Server> clone() const = 0;
 

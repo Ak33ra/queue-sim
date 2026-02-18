@@ -120,6 +120,44 @@ class TestFB:
         assert T > 0
 
 
+class TestMultiServer:
+
+    def test_fcfs_k2_runs(self) -> None:
+        system = QueueSystem(
+            [FCFS(sizefn=genExp(1.0), num_servers=2)], arrivalfn=genExp(1.0)
+        )
+        N, T = system.sim(num_events=50_000, seed=42)
+        assert N > 0
+        assert T > 0
+
+    def test_ps_k2_runs(self) -> None:
+        system = QueueSystem(
+            [PS(sizefn=genExp(1.0), num_servers=2)], arrivalfn=genExp(1.0)
+        )
+        N, T = system.sim(num_events=50_000, seed=42)
+        assert N > 0
+        assert T > 0
+
+    def test_fcfs_k2_seed_determinism(self) -> None:
+        system = QueueSystem(
+            [FCFS(sizefn=genExp(1.0), num_servers=2)], arrivalfn=genExp(1.0)
+        )
+        r1 = system.sim(num_events=10_000, seed=42)
+        r2 = system.sim(num_events=10_000, seed=42)
+        assert r1 == r2
+
+    def test_explicit_k1_matches_default(self) -> None:
+        sys_default = QueueSystem(
+            [FCFS(sizefn=genExp(2.0))], arrivalfn=genExp(1.0)
+        )
+        sys_explicit = QueueSystem(
+            [FCFS(sizefn=genExp(2.0), num_servers=1)], arrivalfn=genExp(1.0)
+        )
+        r1 = sys_default.sim(num_events=10_000, seed=42)
+        r2 = sys_explicit.sim(num_events=10_000, seed=42)
+        assert r1 == r2
+
+
 class TestABCEnforcement:
 
     def test_cannot_instantiate_server_directly(self) -> None:
