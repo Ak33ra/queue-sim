@@ -40,7 +40,13 @@ Requires a C++17 compiler and Python >= 3.9.
 
 ## Usage
 
-Both backends expose the same `QueueSystem` interface. The Python backend uses callable generators; the C++ backend uses typed distribution objects and releases the GIL during simulation.
+Both backends expose the same `QueueSystem` interface with a few differences:
+
+| | Python | C++ |
+|---|---|---|
+| **Distributions** | Any `Callable[[], float]` — custom distributions, mixtures, etc. | Three built-in types only (`ExponentialDist`, `UniformDist`, `BoundedParetoDist`) |
+| **Parallel replications** | Sequential only | `n_threads` parameter for multithreaded execution |
+| **GIL** | Held during simulation | Released — won't block other Python threads |
 
 ### Python Backend
 
