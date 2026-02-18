@@ -87,6 +87,54 @@ class TestSRPT:
         assert T < 1.1  # allow some slack
 
 
+class TestPS:
+    """PS policy smoke tests."""
+
+    def test_ps_single_server(self) -> None:
+        server = _queue_sim_cpp.PS(_queue_sim_cpp.ExponentialDist(2.0))
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(1.0)
+        )
+        N, T = system.sim(num_events=100_000, seed=42)
+        assert N > 0
+        assert T > 0
+
+    def test_ps_seed_determinism(self) -> None:
+        def make():
+            server = _queue_sim_cpp.PS(_queue_sim_cpp.ExponentialDist(2.0))
+            return _queue_sim_cpp.QueueSystem(
+                [server], _queue_sim_cpp.ExponentialDist(1.0)
+            )
+
+        r1 = make().sim(num_events=10_000, seed=42)
+        r2 = make().sim(num_events=10_000, seed=42)
+        assert r1 == r2
+
+
+class TestFB:
+    """FB policy smoke tests."""
+
+    def test_fb_single_server(self) -> None:
+        server = _queue_sim_cpp.FB(_queue_sim_cpp.ExponentialDist(2.0))
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(1.0)
+        )
+        N, T = system.sim(num_events=100_000, seed=42)
+        assert N > 0
+        assert T > 0
+
+    def test_fb_seed_determinism(self) -> None:
+        def make():
+            server = _queue_sim_cpp.FB(_queue_sim_cpp.ExponentialDist(2.0))
+            return _queue_sim_cpp.QueueSystem(
+                [server], _queue_sim_cpp.ExponentialDist(1.0)
+            )
+
+        r1 = make().sim(num_events=10_000, seed=42)
+        r2 = make().sim(num_events=10_000, seed=42)
+        assert r1 == r2
+
+
 class TestDistributions:
     """Verify distribution types can be constructed."""
 

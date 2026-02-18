@@ -6,7 +6,7 @@ validation, seed reproducibility, and the Server ABC contract.
 
 import pytest
 
-from queue_sim import FCFS, SRPT, QueueSystem, Server, genExp
+from queue_sim import FB, FCFS, PS, SRPT, QueueSystem, Server, genExp
 
 
 class TestSeedReproducibility:
@@ -65,6 +65,54 @@ class TestTandemNetwork:
         """A tandem FCFS -> SRPT network should produce positive E[N], E[T]."""
         system = QueueSystem(
             [FCFS(sizefn=genExp(4.0)), SRPT(sizefn=genExp(4.0))],
+            arrivalfn=genExp(1.0),
+        )
+        N, T = system.sim(num_events=50_000, seed=7)
+        assert N > 0
+        assert T > 0
+
+
+class TestPS:
+
+    def test_ps_single_server(self) -> None:
+        system = QueueSystem([PS(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+        N, T = system.sim(num_events=50_000, seed=42)
+        assert N > 0
+        assert T > 0
+
+    def test_ps_seed_determinism(self) -> None:
+        system = QueueSystem([PS(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+        r1 = system.sim(num_events=10_000, seed=42)
+        r2 = system.sim(num_events=10_000, seed=42)
+        assert r1 == r2
+
+    def test_ps_tandem(self) -> None:
+        system = QueueSystem(
+            [PS(sizefn=genExp(4.0)), FCFS(sizefn=genExp(4.0))],
+            arrivalfn=genExp(1.0),
+        )
+        N, T = system.sim(num_events=50_000, seed=7)
+        assert N > 0
+        assert T > 0
+
+
+class TestFB:
+
+    def test_fb_single_server(self) -> None:
+        system = QueueSystem([FB(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+        N, T = system.sim(num_events=50_000, seed=42)
+        assert N > 0
+        assert T > 0
+
+    def test_fb_seed_determinism(self) -> None:
+        system = QueueSystem([FB(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+        r1 = system.sim(num_events=10_000, seed=42)
+        r2 = system.sim(num_events=10_000, seed=42)
+        assert r1 == r2
+
+    def test_fb_tandem(self) -> None:
+        system = QueueSystem(
+            [FB(sizefn=genExp(4.0)), FCFS(sizefn=genExp(4.0))],
             arrivalfn=genExp(1.0),
         )
         N, T = system.sim(num_events=50_000, seed=7)

@@ -150,3 +150,23 @@ class TestCppParallelReplicate:
         assert lo <= expected_T <= hi, (
             f"95% CI [{lo:.4f}, {hi:.4f}] does not contain E[T]={expected_T}"
         )
+
+    def test_ps_parallel(self) -> None:
+        """PS -> parallel matches sequential (verifies PS clone)."""
+        server = _queue_sim_cpp.PS(_queue_sim_cpp.ExponentialDist(2.0))
+        sys = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(1.0),
+        )
+        r1 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=1)
+        r2 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=4)
+        assert list(r1.raw_T) == list(r2.raw_T)
+
+    def test_fb_parallel(self) -> None:
+        """FB -> parallel matches sequential (verifies FB clone)."""
+        server = _queue_sim_cpp.FB(_queue_sim_cpp.ExponentialDist(2.0))
+        sys = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(1.0),
+        )
+        r1 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=1)
+        r2 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=4)
+        assert list(r1.raw_T) == list(r2.raw_T)

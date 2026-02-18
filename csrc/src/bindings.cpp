@@ -6,6 +6,8 @@
 #include "queue_sim/queue_system.hpp"
 #include "queue_sim/server.hpp"
 #include "queue_sim/srpt.hpp"
+#include "queue_sim/ps.hpp"
+#include "queue_sim/fb.hpp"
 
 namespace py = pybind11;
 using namespace queue_sim;
@@ -59,6 +61,34 @@ PYBIND11_MODULE(_queue_sim_cpp, m) {
                 return SRPT(dist.cast<UniformDist>());
             if (py::isinstance<BoundedParetoDist>(dist))
                 return SRPT(dist.cast<BoundedParetoDist>());
+            throw py::type_error(
+                "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
+        }), py::arg("sizefn"));
+
+    // -- PS ------------------------------------------------------------------
+
+    py::class_<PS, Server, std::shared_ptr<PS>>(m, "PS")
+        .def(py::init([](py::object dist) -> PS {
+            if (py::isinstance<ExponentialDist>(dist))
+                return PS(dist.cast<ExponentialDist>());
+            if (py::isinstance<UniformDist>(dist))
+                return PS(dist.cast<UniformDist>());
+            if (py::isinstance<BoundedParetoDist>(dist))
+                return PS(dist.cast<BoundedParetoDist>());
+            throw py::type_error(
+                "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
+        }), py::arg("sizefn"));
+
+    // -- FB ------------------------------------------------------------------
+
+    py::class_<FB, Server, std::shared_ptr<FB>>(m, "FB")
+        .def(py::init([](py::object dist) -> FB {
+            if (py::isinstance<ExponentialDist>(dist))
+                return FB(dist.cast<ExponentialDist>());
+            if (py::isinstance<UniformDist>(dist))
+                return FB(dist.cast<UniformDist>());
+            if (py::isinstance<BoundedParetoDist>(dist))
+                return FB(dist.cast<BoundedParetoDist>());
             throw py::type_error(
                 "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
         }), py::arg("sizefn"));

@@ -50,3 +50,84 @@ class TestMM1Cpp:
             f"lam={lam}, mu={mu}: simulated E[N]={N:.4f}, "
             f"expected={expected_N:.4f}"
         )
+
+
+class TestMG1Cpp:
+    """M/G/1 with Uniform service via C++ backend.
+
+    Uniform(a, b): E[S] = (a+b)/2, E[S^2] = (a^2 + ab + b^2)/3.
+    FCFS P-K:  E[T] = E[S] + lam * E[S^2] / (2 * (1 - rho))
+    PS:        E[T] = E[S] / (1 - rho)
+    """
+
+    A, B = 0.3, 0.7
+    ES = (A + B) / 2
+    ES2 = (A**2 + A * B + B**2) / 3
+
+    @pytest.mark.parametrize("lam", [1.0, 1.6])
+    def test_fcfs_pk_formula(self, lam: float) -> None:
+        """M/G/1-FCFS E[T] via Pollaczek-Khinchine."""
+        rho = lam * self.ES
+        expected_T = self.ES + lam * self.ES2 / (2 * (1 - rho))
+        server = _queue_sim_cpp.FCFS(_queue_sim_cpp.UniformDist(self.A, self.B))
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(lam)
+        )
+        N, T = system.sim(num_events=NUM_EVENTS, seed=42)
+        assert T == pytest.approx(expected_T, rel=RTOL), (
+            f"lam={lam}: simulated E[T]={T:.4f}, expected={expected_T:.4f}"
+        )
+
+    @pytest.mark.parametrize("lam", [1.0, 1.6])
+    def test_ps_mean_response_time(self, lam: float) -> None:
+        """M/G/1-PS E[T] = E[S] / (1 - rho)."""
+        rho = lam * self.ES
+        expected_T = self.ES / (1 - rho)
+        server = _queue_sim_cpp.PS(_queue_sim_cpp.UniformDist(self.A, self.B))
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(lam)
+        )
+        N, T = system.sim(num_events=NUM_EVENTS, seed=42)
+        assert T == pytest.approx(expected_T, rel=RTOL), (
+            f"lam={lam}: simulated E[T]={T:.4f}, expected={expected_T:.4f}"
+        )
+
+
+class TestMM1PSCpp:
+    """M/M/1-PS via C++ backend: E[T] = 1/(mu - lambda)."""
+
+    @pytest.mark.parametrize("lam,mu", [
+        (1.0, 2.0),
+        (8.0, 10.0),
+    ])
+    def test_ps_mean_response_time(self, lam: float, mu: float) -> None:
+        expected_T = 1.0 / (mu - lam)
+        server = _queue_sim_cpp.PS(_queue_sim_cpp.ExponentialDist(mu))
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(lam)
+        )
+        N, T = system.sim(num_events=NUM_EVENTS, seed=42)
+        assert T == pytest.approx(expected_T, rel=RTOL), (
+            f"lam={lam}, mu={mu}: simulated E[T]={T:.4f}, "
+            f"expected={expected_T:.4f}"
+        )
+
+
+class TestMM1FBCpp:
+    """M/M/1-FB via C++ backend: E[T] = 1/(mu - lambda)."""
+
+    @pytest.mark.parametrize("lam,mu", [
+        (1.0, 2.0),
+        (8.0, 10.0),
+    ])
+    def test_fb_mean_response_time(self, lam: float, mu: float) -> None:
+        expected_T = 1.0 / (mu - lam)
+        server = _queue_sim_cpp.FB(_queue_sim_cpp.ExponentialDist(mu))
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(lam)
+        )
+        N, T = system.sim(num_events=NUM_EVENTS, seed=42)
+        assert T == pytest.approx(expected_T, rel=RTOL), (
+            f"lam={lam}, mu={mu}: simulated E[T]={T:.4f}, "
+            f"expected={expected_T:.4f}"
+        )

@@ -9,7 +9,7 @@ from queue_sim.lib import (
     genExp,
     genUniform,
 )
-from queue_sim.policies import FCFS, SRPT
+from queue_sim.policies import FB, FCFS, PS, SRPT
 from queue_sim.queueSystem import QueueSystem
 from queue_sim.results import ReplicationResult
 from queue_sim.server import Server
@@ -21,7 +21,9 @@ __all__ = [
     "QueueSystem",
     "ReplicationResult",
     "Server",
+    "FB",
     "FCFS",
+    "PS",
     "SRPT",
     "genExp",
     "genUniform",

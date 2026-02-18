@@ -17,7 +17,9 @@ queue_sim.egg-info/top_level.txt
 queue_sim/lib/__init__.py
 queue_sim/lib/display_system.py
 queue_sim/lib/rvGen.py
+queue_sim/policies/FB.py
 queue_sim/policies/FCFS.py
+queue_sim/policies/PS.py
 queue_sim/policies/SRPT.py
 queue_sim/policies/__init__.py
 tests/test_analytical.py

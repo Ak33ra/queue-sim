@@ -55,7 +55,7 @@ public:
 
     double queryTTNC() const { return TTNC; }
 
-    bool update(double time_elapsed) {
+    virtual bool update(double time_elapsed) {
         TTNC -= time_elapsed;
         clock += time_elapsed;
         if (TTNC <= 0.0) {
