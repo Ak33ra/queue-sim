@@ -97,6 +97,8 @@ class QueueSystem:
                         before stopping.
             seed:       Optional RNG seed for reproducibility.
             _warmup:    Number of departures to discard before measurement.
+            track_response_times: If True, record every job's response time
+                        in ``self.response_times`` (list of floats).
 
         Returns:
             (E[N], E[T]): mean number in system and mean response time.

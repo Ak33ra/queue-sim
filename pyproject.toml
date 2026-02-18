@@ -14,7 +14,7 @@ keywords = ["simulation", "queueing", "discrete-event", "scheduling"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "hypothesis>=6", "ruff>=0.4"]
-viz = ["matplotlib>=3.7"]
+viz = ["matplotlib>=3.7", "numpy>=1.24"]
 
 [project.urls]
 Homepage = "https://github.com/Ak33ra/queue-sim"
