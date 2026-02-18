@@ -38,52 +38,109 @@ pip install -e ".[dev]"
 
 Requires a C++17 compiler and Python >= 3.9.
 
-## Quick Start
+## Usage
+
+Both backends expose the same `QueueSystem` interface. The Python backend uses callable generators; the C++ backend uses typed distribution objects and releases the GIL during simulation.
+
+### Python Backend
 
 ```python
-from queue_sim import QueueSystem, FCFS, SRPT, PS, FB, genExp
+from queue_sim import QueueSystem, FCFS, SRPT, PS, FB, genExp, genUniform
 
-# M/M/1: Poisson arrivals (rate 1), exponential service (rate 2)
+# --- Scheduling policies ---
+
+# M/M/1-FCFS: Poisson arrivals (rate 1), exponential service (rate 2)
 system = QueueSystem([FCFS(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+N, T = system.sim(num_events=10**6, seed=42)
+# E[T] = 1/(mu - lam) = 1.0
 
-# Single run — returns (E[N], E[T])
+# M/M/1-SRPT: preempts current job when a shorter one arrives
+system = QueueSystem([SRPT(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
 N, T = system.sim(num_events=10**6, seed=42)
 
-# Multiple replications — returns ReplicationResult with CIs
-result = system.replicate(n_replications=30, num_events=10**6, seed=42)
-print(f"E[T] = {result.mean_T:.4f}  95% CI: [{result.ci_T[0]:.4f}, {result.ci_T[1]:.4f}]")
-```
-
-### Processor Sharing
-
-```python
-# M/G/1-PS: all jobs share the server equally
-from queue_sim import genUniform
-
+# M/G/1-PS: all jobs share the server equally (rate 1/n each)
 system = QueueSystem([PS(sizefn=genUniform(0.3, 0.7))], arrivalfn=genExp(1.0))
-result = system.replicate(n_replications=30, num_events=10**6, seed=42)
+N, T = system.sim(num_events=10**6, seed=42)
 # E[T] = E[S] / (1 - rho) for any service distribution
-```
 
-### Tandem Network
-
-```python
-# Two servers in series: FCFS -> SRPT
-fifo = FCFS(sizefn=genExp(2.0))
-srpt = SRPT(sizefn=genExp(2.0))
-system = QueueSystem([fifo, srpt], arrivalfn=genExp(1.0))
+# M/M/1-FB: always serves job(s) with least attained service
+system = QueueSystem([FB(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
 N, T = system.sim(num_events=10**6, seed=42)
-```
 
-### Probabilistic Routing
+# --- Networks ---
 
-```python
-# Feedback network: 30% of jobs return to server 0 after completion
+# Tandem: FCFS -> SRPT (jobs flow through in series)
+system = QueueSystem(
+    [FCFS(sizefn=genExp(4.0)), SRPT(sizefn=genExp(4.0))],
+    arrivalfn=genExp(1.0),
+)
+N, T = system.sim(num_events=10**6, seed=42)
+
+# Feedback: 30% of jobs return to server 0 after completion
+system = QueueSystem([PS(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+system.updateTransitionMatrix([[0.3, 0.7]])  # [to server 0, exit]
+N, T = system.sim(num_events=10**6, seed=42)
+
+# --- Replications with confidence intervals ---
+
 system = QueueSystem([FCFS(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
-#                     to server 0  |  exit
-system.updateTransitionMatrix([[0.3,         0.7]])
-N, T = system.sim(num_events=10**6, seed=42)
+result = system.replicate(
+    n_replications=30, num_events=10**6, seed=42, warmup=10_000,
+)
+print(f"E[T] = {result.mean_T:.4f}  95% CI: {result.ci_T}")
 ```
+
+### C++ Backend
+
+The C++ backend uses the same API but with distribution objects instead of callables. Simulations release the GIL, and `replicate()` supports parallel execution via `n_threads`.
+
+```python
+import _queue_sim_cpp as cpp
+
+# --- Scheduling policies ---
+
+# M/M/1-FCFS
+system = cpp.QueueSystem([cpp.FCFS(cpp.ExponentialDist(2.0))], cpp.ExponentialDist(1.0))
+N, T = system.sim(num_events=10**6, seed=42)
+
+# M/G/1-PS with uniform service
+system = cpp.QueueSystem([cpp.PS(cpp.UniformDist(0.3, 0.7))], cpp.ExponentialDist(1.0))
+N, T = system.sim(num_events=10**6, seed=42)
+
+# M/M/1-FB
+system = cpp.QueueSystem([cpp.FB(cpp.ExponentialDist(2.0))], cpp.ExponentialDist(1.0))
+N, T = system.sim(num_events=10**6, seed=42)
+
+# --- Networks ---
+
+# Tandem: PS -> FCFS
+system = cpp.QueueSystem(
+    [cpp.PS(cpp.ExponentialDist(4.0)), cpp.FCFS(cpp.ExponentialDist(4.0))],
+    cpp.ExponentialDist(1.0),
+)
+N, T = system.sim(num_events=10**6, seed=42)
+
+# --- Parallel replications ---
+
+system = cpp.QueueSystem([cpp.FCFS(cpp.ExponentialDist(2.0))], cpp.ExponentialDist(1.0))
+raw = system.replicate(
+    n_replications=30, num_events=10**6, seed=42, warmup=10_000, n_threads=4,
+)
+# raw.raw_T and raw.raw_N are lists of per-replication results
+
+# Wrap with CI computation (no scipy needed)
+from queue_sim.results import _build_replication_result
+result = _build_replication_result(tuple(raw.raw_N), tuple(raw.raw_T), 0.95)
+print(f"E[T] = {result.mean_T:.4f}  95% CI: {result.ci_T}")
+```
+
+### Available Distributions
+
+| Python | C++ | Parameters |
+|---|---|---|
+| `genExp(mu)` | `ExponentialDist(mu)` | rate `mu`, E[X] = 1/mu |
+| `genUniform(a, b)` | `UniformDist(a, b)` | support [a, b] |
+| `genBoundedPareto(k, p, alpha)` | `BoundedParetoDist(k, p, alpha)` | shape `alpha`, range [k, p] |
 
 ## Testing and Validation
 
