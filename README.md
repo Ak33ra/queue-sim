@@ -143,6 +143,25 @@ system = QueueSystem([SRPT(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
 system.sim(num_events=10**6, seed=42, track_response_times=True)
 rt = np.array(system.response_times)
 print(f"SRPT Median: {np.median(rt):.4f}, P99: {np.percentile(rt, 99):.4f}")
+
+# --- Plotting (pip install queue-sim[viz]) ---
+
+from queue_sim.plotting import plot_cdf, plot_tail, compare_policies
+
+# CDF of response times
+fig, ax = plot_cdf(system.response_times, label="SRPT")
+
+# Tail probability P(T > t) on log scale
+fig, ax = plot_tail(system.response_times, label="SRPT")
+
+# Compare multiple policies side-by-side
+policies = {}
+for name, cls in [("FCFS", FCFS), ("SRPT", SRPT), ("PS", PS)]:
+    sys = QueueSystem([cls(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+    sys.sim(num_events=10**6, seed=42, track_response_times=True)
+    policies[name] = sys.response_times
+fig, ax = compare_policies(policies, kind="cdf")
+fig, ax = compare_policies(policies, kind="tail")
 ```
 
 ### C++ Backend

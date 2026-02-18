@@ -32,4 +32,5 @@ __all__ = [
     "Uniform",
     "BoundedPareto",
     "Bernoulli",
+    "plotting",
 ]
