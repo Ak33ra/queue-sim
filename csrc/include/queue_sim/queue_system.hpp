@@ -238,17 +238,36 @@ private:
                         warmup_done += 1;
                         state -= 1;
                     } else {
-                        srvs[dest]->arrival();
+                        srvs[dest]->num_arrivals += 1;
+                        if (srvs[dest]->is_full()) {
+                            srvs[dest]->num_rejected += 1;
+                            warmup_done += 1;
+                            state -= 1;
+                        } else {
+                            srvs[dest]->arrival();
+                        }
                     }
                 }
                 if (ttna <= ttnc) {
-                    state += 1;
-                    srvs[0]->arrival();
+                    srvs[0]->num_arrivals += 1;
+                    if (srvs[0]->is_full()) {
+                        srvs[0]->num_rejected += 1;
+                    } else {
+                        state += 1;
+                        srvs[0]->arrival();
+                    }
                     ttna = sample(arrival_dist, rng);
                 } else {
                     ttna -= ttne;
                 }
             }
+        }
+
+        // Clear per-server rejection counters so measurement reflects
+        // only the measurement phase.
+        for (auto &s : srvs) {
+            s->num_rejected = 0;
+            s->num_arrivals = 0;
         }
 
         // -- measurement phase -----------------------------------------------
@@ -275,13 +294,25 @@ private:
                     num_completions += 1;
                     state -= 1;
                 } else {
-                    srvs[dest]->arrival();
+                    srvs[dest]->num_arrivals += 1;
+                    if (srvs[dest]->is_full()) {
+                        srvs[dest]->num_rejected += 1;
+                        num_completions += 1;
+                        state -= 1;
+                    } else {
+                        srvs[dest]->arrival();
+                    }
                 }
             }
 
             if (ttna <= ttnc) {
-                state += 1;
-                srvs[0]->arrival();
+                srvs[0]->num_arrivals += 1;
+                if (srvs[0]->is_full()) {
+                    srvs[0]->num_rejected += 1;
+                } else {
+                    state += 1;
+                    srvs[0]->arrival();
+                }
                 ttna = sample(arrival_dist, rng);
             } else {
                 ttna -= ttne;

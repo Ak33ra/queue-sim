@@ -35,63 +35,77 @@ PYBIND11_MODULE(_queue_sim_cpp, m) {
         .def_readonly("state", &Server::state)
         .def_readonly("clock", &Server::clock)
         .def_readonly("num_servers", &Server::num_servers)
+        .def_readonly("buffer_capacity", &Server::buffer_capacity)
+        .def_readonly("num_rejected", &Server::num_rejected)
+        .def_readonly("num_arrivals", &Server::num_arrivals)
+        .def("is_full", &Server::is_full)
         .def("queryTTNC", &Server::queryTTNC);
 
     // -- FCFS ----------------------------------------------------------------
 
     py::class_<FCFS, Server, std::shared_ptr<FCFS>>(m, "FCFS")
-        .def(py::init([](py::object dist, int num_servers) -> FCFS {
+        .def(py::init([](py::object dist, int num_servers,
+                         int buffer_capacity) -> FCFS {
             if (py::isinstance<ExponentialDist>(dist))
-                return FCFS(dist.cast<ExponentialDist>(), num_servers);
+                return FCFS(dist.cast<ExponentialDist>(), num_servers,
+                            buffer_capacity);
             if (py::isinstance<UniformDist>(dist))
-                return FCFS(dist.cast<UniformDist>(), num_servers);
+                return FCFS(dist.cast<UniformDist>(), num_servers,
+                            buffer_capacity);
             if (py::isinstance<BoundedParetoDist>(dist))
-                return FCFS(dist.cast<BoundedParetoDist>(), num_servers);
+                return FCFS(dist.cast<BoundedParetoDist>(), num_servers,
+                            buffer_capacity);
             throw py::type_error(
                 "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
-        }), py::arg("sizefn"), py::arg("num_servers") = 1);
+        }), py::arg("sizefn"), py::arg("num_servers") = 1,
+            py::arg("buffer_capacity") = -1);
 
     // -- SRPT ----------------------------------------------------------------
 
     py::class_<SRPT, Server, std::shared_ptr<SRPT>>(m, "SRPT")
-        .def(py::init([](py::object dist) -> SRPT {
+        .def(py::init([](py::object dist, int buffer_capacity) -> SRPT {
             if (py::isinstance<ExponentialDist>(dist))
-                return SRPT(dist.cast<ExponentialDist>());
+                return SRPT(dist.cast<ExponentialDist>(), buffer_capacity);
             if (py::isinstance<UniformDist>(dist))
-                return SRPT(dist.cast<UniformDist>());
+                return SRPT(dist.cast<UniformDist>(), buffer_capacity);
             if (py::isinstance<BoundedParetoDist>(dist))
-                return SRPT(dist.cast<BoundedParetoDist>());
+                return SRPT(dist.cast<BoundedParetoDist>(), buffer_capacity);
             throw py::type_error(
                 "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
-        }), py::arg("sizefn"));
+        }), py::arg("sizefn"), py::arg("buffer_capacity") = -1);
 
     // -- PS ------------------------------------------------------------------
 
     py::class_<PS, Server, std::shared_ptr<PS>>(m, "PS")
-        .def(py::init([](py::object dist, int num_servers) -> PS {
+        .def(py::init([](py::object dist, int num_servers,
+                         int buffer_capacity) -> PS {
             if (py::isinstance<ExponentialDist>(dist))
-                return PS(dist.cast<ExponentialDist>(), num_servers);
+                return PS(dist.cast<ExponentialDist>(), num_servers,
+                          buffer_capacity);
             if (py::isinstance<UniformDist>(dist))
-                return PS(dist.cast<UniformDist>(), num_servers);
+                return PS(dist.cast<UniformDist>(), num_servers,
+                          buffer_capacity);
             if (py::isinstance<BoundedParetoDist>(dist))
-                return PS(dist.cast<BoundedParetoDist>(), num_servers);
+                return PS(dist.cast<BoundedParetoDist>(), num_servers,
+                          buffer_capacity);
             throw py::type_error(
                 "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
-        }), py::arg("sizefn"), py::arg("num_servers") = 1);
+        }), py::arg("sizefn"), py::arg("num_servers") = 1,
+            py::arg("buffer_capacity") = -1);
 
     // -- FB ------------------------------------------------------------------
 
     py::class_<FB, Server, std::shared_ptr<FB>>(m, "FB")
-        .def(py::init([](py::object dist) -> FB {
+        .def(py::init([](py::object dist, int buffer_capacity) -> FB {
             if (py::isinstance<ExponentialDist>(dist))
-                return FB(dist.cast<ExponentialDist>());
+                return FB(dist.cast<ExponentialDist>(), buffer_capacity);
             if (py::isinstance<UniformDist>(dist))
-                return FB(dist.cast<UniformDist>());
+                return FB(dist.cast<UniformDist>(), buffer_capacity);
             if (py::isinstance<BoundedParetoDist>(dist))
-                return FB(dist.cast<BoundedParetoDist>());
+                return FB(dist.cast<BoundedParetoDist>(), buffer_capacity);
             throw py::type_error(
                 "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
-        }), py::arg("sizefn"));
+        }), py::arg("sizefn"), py::arg("buffer_capacity") = -1);
 
     // -- ReplicationRawResult ------------------------------------------------
 

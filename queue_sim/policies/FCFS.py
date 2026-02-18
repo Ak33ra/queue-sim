@@ -14,8 +14,13 @@ from ..server import Server
 
 class FCFS(Server):
 
-    def __init__(self, sizefn: Callable[[], float], num_servers: int = 1) -> None:
-        super().__init__(sizefn, num_servers)
+    def __init__(
+        self,
+        sizefn: Callable[[], float],
+        num_servers: int = 1,
+        buffer_capacity: int | None = None,
+    ) -> None:
+        super().__init__(sizefn, num_servers, buffer_capacity)
         self.channelRemaining: list[float] = []
         self.channelArrivals: list[float] = []
         self.waitQueue: deque[float] = deque()

@@ -7,7 +7,7 @@ import pytest
 
 _queue_sim_cpp = pytest.importorskip("_queue_sim_cpp")
 
-from .helpers import mmk_expected_T  # noqa: E402
+from .helpers import erlang_b, mm1k_ploss, mmk_expected_T  # noqa: E402
 
 NUM_EVENTS = 500_000
 RTOL = 0.05  # 5% relative tolerance
@@ -172,4 +172,60 @@ class TestMMkCpp:
         assert T == pytest.approx(expected_T, rel=RTOL), (
             f"M/M/{k} PS: lam={lam}, mu={mu}: simulated E[T]={T:.4f}, "
             f"expected={expected_T:.4f}"
+        )
+
+
+class TestErlangBCpp:
+    """M/M/c/c (Erlang loss system) via C++ backend."""
+
+    @pytest.mark.parametrize("lam,mu,c", [
+        (2.0, 1.0, 3),
+        (5.0, 1.0, 5),
+        (1.0, 2.0, 2),
+    ])
+    def test_erlang_b_loss_probability(
+        self, lam: float, mu: float, c: int
+    ) -> None:
+        a = lam / mu
+        expected_ploss = erlang_b(c, a)
+        server = _queue_sim_cpp.FCFS(
+            _queue_sim_cpp.ExponentialDist(mu),
+            num_servers=c,
+            buffer_capacity=c,
+        )
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(lam)
+        )
+        system.sim(num_events=NUM_EVENTS, seed=42)
+        ploss = server.num_rejected / server.num_arrivals
+        assert ploss == pytest.approx(expected_ploss, abs=0.02), (
+            f"M/M/{c}/{c}: lam={lam}, mu={mu}: simulated P(loss)={ploss:.4f}, "
+            f"expected={expected_ploss:.4f}"
+        )
+
+
+class TestMM1KCpp:
+    """M/M/1/K (finite buffer) via C++ backend."""
+
+    @pytest.mark.parametrize("lam,mu,K", [
+        (1.0, 2.0, 5),
+        (3.0, 4.0, 3),
+        (8.0, 10.0, 10),
+    ])
+    def test_mm1k_loss_probability(
+        self, lam: float, mu: float, K: int
+    ) -> None:
+        rho = lam / mu
+        expected_ploss = mm1k_ploss(rho, K)
+        server = _queue_sim_cpp.FCFS(
+            _queue_sim_cpp.ExponentialDist(mu), buffer_capacity=K
+        )
+        system = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(lam)
+        )
+        system.sim(num_events=NUM_EVENTS, seed=42)
+        ploss = server.num_rejected / server.num_arrivals
+        assert ploss == pytest.approx(expected_ploss, abs=0.02), (
+            f"M/M/1/{K}: lam={lam}, mu={mu}: simulated P(loss)={ploss:.4f}, "
+            f"expected={expected_ploss:.4f}"
         )

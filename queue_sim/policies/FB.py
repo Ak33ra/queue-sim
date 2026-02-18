@@ -14,8 +14,12 @@ from ..server import Server
 
 class FB(Server):
 
-    def __init__(self, sizefn: Callable[[], float]) -> None:
-        super().__init__(sizefn)
+    def __init__(
+        self,
+        sizefn: Callable[[], float],
+        buffer_capacity: int | None = None,
+    ) -> None:
+        super().__init__(sizefn, 1, buffer_capacity)
         # Each job: [remaining, attained, arrival_time]
         self.jobs: list[list[float]] = []
 

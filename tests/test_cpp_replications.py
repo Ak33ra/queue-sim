@@ -196,3 +196,18 @@ class TestCppParallelReplicate:
         r2 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=4)
         assert list(r1.raw_T) == list(r2.raw_T)
         assert list(r1.raw_N) == list(r2.raw_N)
+
+    def test_fcfs_k2_buffer5_parallel(self) -> None:
+        """FCFS k=2 buffer=5 -> parallel matches sequential (clone preserves buffer_capacity)."""
+        server = _queue_sim_cpp.FCFS(
+            _queue_sim_cpp.ExponentialDist(1.0),
+            num_servers=2,
+            buffer_capacity=5,
+        )
+        sys = _queue_sim_cpp.QueueSystem(
+            [server], _queue_sim_cpp.ExponentialDist(3.0),
+        )
+        r1 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=1)
+        r2 = sys.replicate(n_replications=10, num_events=10_000, seed=42, n_threads=4)
+        assert list(r1.raw_T) == list(r2.raw_T)
+        assert list(r1.raw_N) == list(r2.raw_N)

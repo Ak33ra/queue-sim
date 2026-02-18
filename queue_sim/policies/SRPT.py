@@ -14,8 +14,12 @@ from ..server import Server
 
 class SRPT(Server):
 
-    def __init__(self, sizefn: Callable[[], float]) -> None:
-        super().__init__(sizefn)
+    def __init__(
+        self,
+        sizefn: Callable[[], float],
+        buffer_capacity: int | None = None,
+    ) -> None:
+        super().__init__(sizefn, 1, buffer_capacity)
         self.jobs: list[float] = []
 
     def reset(self) -> None:

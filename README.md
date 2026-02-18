@@ -2,14 +2,14 @@
 
 A discrete-event simulation engine for queueing networks, with a C++ hot-path backend exposed to Python via pybind11.
 
-Supports pluggable scheduling policies (FCFS, SRPT, PS, FB), multi-server queues (G/G/k), tandem and feedback networks with probabilistic routing, and statistically rigorous output analysis via independent replications with confidence intervals.
+Supports pluggable scheduling policies (FCFS, SRPT, PS, FB), multi-server queues (G/G/k), finite-buffer loss queues (M/M/c/c Erlang-B, M/M/1/K), tandem and feedback networks with probabilistic routing, and statistically rigorous output analysis via independent replications with confidence intervals.
 
 ## Architecture
 
 ```
 queue_sim/          Python frontend — system construction, replication logic, statistics
 csrc/               C++ backend — event loop, servers, distributions (pybind11)
-tests/              118 tests — analytical validation, Little's law, property-based (Hypothesis)
+tests/              150 tests — analytical validation, Little's law, property-based (Hypothesis)
 ```
 
 **Dual backend.** The same `QueueSystem` interface is available in pure Python and as a compiled C++ extension. The C++ event loop releases the GIL during simulation, enabling concurrent execution.
@@ -21,6 +21,8 @@ tests/              118 tests — analytical validation, Little's law, property-
 - **FB** — foreground-background / least attained service (serves jobs with least accumulated service)
 
 **Multi-server queues (G/G/k).** FCFS and PS accept a `num_servers` parameter. With k servers, FCFS runs up to k jobs in parallel (rest wait in FIFO queue); PS shares k servers among all n jobs (rate min(k,n)/n per job). Validated against the Erlang-C formula for M/M/k.
+
+**Finite buffers + loss queues.** All policies accept a `buffer_capacity` parameter (total system capacity K = in-service + waiting). Arrivals to a full server are rejected. Per-server `num_rejected` and `num_arrivals` counters enable computing loss probability P(loss). Supports M/M/c/c (Erlang-B), M/M/1/K, and arbitrary finite-buffer configurations. Validated against the Erlang-B formula and the M/M/1/K analytical loss probability.
 
 **Statistical output.** `replicate()` runs N independent replications with deterministic per-replication seeds (SplitMix64), optional warmup, and returns t-distribution confidence intervals — no scipy dependency.
 
@@ -48,6 +50,7 @@ Both backends expose the same `QueueSystem` interface with a few differences:
 |---|---|---|
 | **Distributions** | Any `Callable[[], float]` — custom distributions, mixtures, etc. | Three built-in types only (`ExponentialDist`, `UniformDist`, `BoundedParetoDist`) |
 | **Multi-server (G/G/k)** | `num_servers` param on FCFS, PS | `num_servers` param on FCFS, PS |
+| **Finite buffers** | `buffer_capacity` param on all policies (`None` = unlimited) | `buffer_capacity` param on all policies (`-1` = unlimited) |
 | **Parallel replications** | Sequential only | `n_threads` parameter for multithreaded execution |
 | **GIL** | Held during simulation | Released — won't block other Python threads |
 
@@ -86,6 +89,20 @@ N, T = system.sim(num_events=10**6, seed=42)
 # M/M/2-PS: 2 servers shared among all jobs
 system = QueueSystem([PS(sizefn=genExp(1.0), num_servers=2)], arrivalfn=genExp(1.0))
 N, T = system.sim(num_events=10**6, seed=42)
+
+# --- Finite buffers (loss queues) ---
+
+# M/M/3/3 (Erlang-B): 3 servers, capacity 3 — no waiting room
+server = FCFS(sizefn=genExp(1.0), num_servers=3, buffer_capacity=3)
+system = QueueSystem([server], arrivalfn=genExp(2.0))
+system.sim(num_events=10**6, seed=42)
+print(f"P(loss) = {server.num_rejected / server.num_arrivals:.4f}")
+
+# M/M/1/5: single server, capacity 5
+server = FCFS(sizefn=genExp(2.0), buffer_capacity=5)
+system = QueueSystem([server], arrivalfn=genExp(1.0))
+system.sim(num_events=10**6, seed=42)
+print(f"P(loss) = {server.num_rejected / server.num_arrivals:.4f}")
 
 # --- Networks ---
 
@@ -145,6 +162,20 @@ system = cpp.QueueSystem(
 )
 N, T = system.sim(num_events=10**6, seed=42)
 
+# --- Finite buffers (loss queues) ---
+
+# M/M/3/3 (Erlang-B)
+server = cpp.FCFS(cpp.ExponentialDist(1.0), num_servers=3, buffer_capacity=3)
+system = cpp.QueueSystem([server], cpp.ExponentialDist(2.0))
+system.sim(num_events=10**6, seed=42)
+print(f"P(loss) = {server.num_rejected / server.num_arrivals:.4f}")
+
+# M/M/1/5
+server = cpp.FCFS(cpp.ExponentialDist(2.0), buffer_capacity=5)
+system = cpp.QueueSystem([server], cpp.ExponentialDist(1.0))
+system.sim(num_events=10**6, seed=42)
+print(f"P(loss) = {server.num_rejected / server.num_arrivals:.4f}")
+
 # --- Networks ---
 
 # Tandem: PS -> FCFS
@@ -187,6 +218,8 @@ Tests validate simulation output against closed-form results:
 - **Analytical (M/M/1):** E[T] = 1/(mu - lambda), E[N] = rho/(1 - rho), verified for FCFS, PS, and FB within 5% tolerance
 - **Analytical (M/G/1):** Pollaczek-Khinchine formula for FCFS, E[S]/(1-rho) for PS, with Uniform service
 - **Analytical (M/M/k):** Erlang-C formula for FCFS and PS with k=2 servers, verified on both backends
+- **Erlang-B (M/M/c/c):** loss probability matches recursive Erlang-B formula for multiple (lam, mu, c) configurations
+- **M/M/1/K:** loss probability matches analytical formula for finite-buffer single-server queues
 - **Little's Law:** E[N] = lambda * E[T] verified for both FCFS and SRPT
 - **Confidence intervals:** 95% CI from `replicate()` covers the true E[T] on both Python and C++ backends
 - **Property-based (Hypothesis):** fuzz tests for edge cases and invariant checking

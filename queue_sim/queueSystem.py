@@ -127,13 +127,29 @@ class QueueSystem:
                         warmup_done += 1
                         state -= 1
                     else:
-                        self.servers[dest].arrival()
+                        self.servers[dest].num_arrivals += 1
+                        if self.servers[dest].is_full():
+                            self.servers[dest].num_rejected += 1
+                            warmup_done += 1
+                            state -= 1
+                        else:
+                            self.servers[dest].arrival()
                 if ttna <= ttnc:
-                    state += 1
-                    self.servers[0].arrival()
+                    self.servers[0].num_arrivals += 1
+                    if self.servers[0].is_full():
+                        self.servers[0].num_rejected += 1
+                    else:
+                        state += 1
+                        self.servers[0].arrival()
                     ttna = self.genArrival()
                 else:
                     ttna -= ttne
+
+        # Clear per-server rejection counters so measurement reflects
+        # only the measurement phase.
+        for server in self.servers:
+            server.num_rejected = 0
+            server.num_arrivals = 0
 
         # -- measurement phase ------------------------------------------------
         area_n: float = 0.0
@@ -159,12 +175,22 @@ class QueueSystem:
                     num_completions += 1
                     state -= 1
                 else:
-                    self.servers[dest].arrival()
+                    self.servers[dest].num_arrivals += 1
+                    if self.servers[dest].is_full():
+                        self.servers[dest].num_rejected += 1
+                        num_completions += 1
+                        state -= 1
+                    else:
+                        self.servers[dest].arrival()
 
             # Handle arrival if it fires at or before the next completion
             if ttna <= ttnc:
-                state += 1
-                self.servers[0].arrival()
+                self.servers[0].num_arrivals += 1
+                if self.servers[0].is_full():
+                    self.servers[0].num_rejected += 1
+                else:
+                    state += 1
+                    self.servers[0].arrival()
                 ttna = self.genArrival()
             else:
                 ttna -= ttne

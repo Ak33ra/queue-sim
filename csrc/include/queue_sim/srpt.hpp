@@ -14,10 +14,11 @@ public:
     // min-heap: shortest remaining time on top
     std::priority_queue<double, std::vector<double>, std::greater<double>> jobs;
 
-    explicit SRPT(Distribution sizeDist) : Server(std::move(sizeDist)) {}
+    explicit SRPT(Distribution sizeDist, int buffer_capacity = -1)
+        : Server(std::move(sizeDist), 1, buffer_capacity) {}
 
     std::shared_ptr<Server> clone() const override {
-        return std::make_shared<SRPT>(sizeDist);
+        return std::make_shared<SRPT>(sizeDist, buffer_capacity);
     }
 
     void reset() override {

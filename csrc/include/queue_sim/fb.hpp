@@ -18,10 +18,11 @@ public:
 
     std::vector<Job> jobs;
 
-    explicit FB(Distribution sizeDist) : Server(std::move(sizeDist)) {}
+    explicit FB(Distribution sizeDist, int buffer_capacity = -1)
+        : Server(std::move(sizeDist), 1, buffer_capacity) {}
 
     std::shared_ptr<Server> clone() const override {
-        return std::make_shared<FB>(sizeDist);
+        return std::make_shared<FB>(sizeDist, buffer_capacity);
     }
 
     void reset() override {

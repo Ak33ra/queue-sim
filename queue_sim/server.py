@@ -15,9 +15,17 @@ from typing import Callable
 
 class Server(ABC):
 
-    def __init__(self, sizefn: Callable[[], float], num_servers: int = 1) -> None:
+    def __init__(
+        self,
+        sizefn: Callable[[], float],
+        num_servers: int = 1,
+        buffer_capacity: int | None = None,
+    ) -> None:
+        if buffer_capacity is not None and buffer_capacity < 1:
+            raise ValueError("buffer_capacity must be >= 1 or None (unlimited)")
         self.genSize: Callable[[], float] = sizefn
         self.num_servers: int = num_servers
+        self.buffer_capacity: int | None = buffer_capacity
         self._init_state()
 
     def _init_state(self) -> None:
@@ -28,6 +36,12 @@ class Server(ABC):
         self.T: float = 0.0
         self.num_completions: int = 0
         self.state: int = 0
+        self.num_rejected: int = 0
+        self.num_arrivals: int = 0
+
+    def is_full(self) -> bool:
+        """Return True if the server's buffer is at capacity."""
+        return self.buffer_capacity is not None and self.state >= self.buffer_capacity
 
     def reset(self) -> None:
         """Reset runtime state so the server can be reused across sim() calls."""

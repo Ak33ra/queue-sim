@@ -16,11 +16,12 @@ public:
     std::vector<double> channelArrivals;
     std::deque<double> waitQueue;
 
-    explicit FCFS(Distribution sizeDist, int num_servers = 1)
-        : Server(std::move(sizeDist), num_servers) {}
+    explicit FCFS(Distribution sizeDist, int num_servers = 1,
+                  int buffer_capacity = -1)
+        : Server(std::move(sizeDist), num_servers, buffer_capacity) {}
 
     std::shared_ptr<Server> clone() const override {
-        return std::make_shared<FCFS>(sizeDist, num_servers);
+        return std::make_shared<FCFS>(sizeDist, num_servers, buffer_capacity);
     }
 
     void reset() override {

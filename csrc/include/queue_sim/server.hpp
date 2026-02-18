@@ -4,6 +4,7 @@
 #include <deque>
 #include <limits>
 #include <random>
+#include <stdexcept>
 
 #include "distributions.hpp"
 
@@ -22,13 +23,26 @@ public:
     std::deque<double> arrivalTimes;
 
     int num_servers;
+    int buffer_capacity;
+    int num_rejected = 0;
+    int num_arrivals = 0;
 
-    explicit Server(Distribution sizeDist, int num_servers = 1)
-        : sizeDist(std::move(sizeDist)), num_servers(num_servers) {}
+    explicit Server(Distribution sizeDist, int num_servers = 1,
+                    int buffer_capacity = -1)
+        : sizeDist(std::move(sizeDist)), num_servers(num_servers),
+          buffer_capacity(buffer_capacity) {
+        if (buffer_capacity == 0)
+            throw std::invalid_argument(
+                "buffer_capacity must be >= 1 or -1 (unlimited)");
+    }
     virtual ~Server() = default;
     virtual std::shared_ptr<Server> clone() const = 0;
 
     void setRNG(std::mt19937_64 *r) { rng = r; }
+
+    bool is_full() const {
+        return buffer_capacity >= 0 && state >= buffer_capacity;
+    }
 
     virtual void reset() {
         clock = 0.0;
@@ -36,6 +50,8 @@ public:
         T = 0.0;
         num_completions = 0;
         state = 0;
+        num_rejected = 0;
+        num_arrivals = 0;
         arrivalTimes.clear();
     }
 

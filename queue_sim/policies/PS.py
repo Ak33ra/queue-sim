@@ -15,8 +15,13 @@ from ..server import Server
 
 class PS(Server):
 
-    def __init__(self, sizefn: Callable[[], float], num_servers: int = 1) -> None:
-        super().__init__(sizefn, num_servers)
+    def __init__(
+        self,
+        sizefn: Callable[[], float],
+        num_servers: int = 1,
+        buffer_capacity: int | None = None,
+    ) -> None:
+        super().__init__(sizefn, num_servers, buffer_capacity)
         self.remaining: list[float] = []
         self.jobArrivals: list[float] = []
 

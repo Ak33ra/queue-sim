@@ -163,3 +163,69 @@ class TestABCEnforcement:
     def test_cannot_instantiate_server_directly(self) -> None:
         with pytest.raises(TypeError, match="abstract"):
             Server(sizefn=lambda: 1.0)  # type: ignore[abstract]
+
+
+class TestFiniteBuffer:
+
+    def test_default_buffer_unlimited(self) -> None:
+        """buffer_capacity=None (default) should behave like before."""
+        sys1 = QueueSystem([FCFS(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+        sys2 = QueueSystem(
+            [FCFS(sizefn=genExp(2.0), buffer_capacity=None)],
+            arrivalfn=genExp(1.0),
+        )
+        r1 = sys1.sim(num_events=10_000, seed=42)
+        r2 = sys2.sim(num_events=10_000, seed=42)
+        assert r1 == r2
+
+    def test_buffer_capacity_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="buffer_capacity"):
+            FCFS(sizefn=genExp(2.0), buffer_capacity=0)
+
+    def test_fcfs_k2_buffer5_has_rejections(self) -> None:
+        server = FCFS(sizefn=genExp(1.0), num_servers=2, buffer_capacity=5)
+        system = QueueSystem([server], arrivalfn=genExp(3.0))
+        system.sim(num_events=50_000, seed=42)
+        assert server.num_rejected > 0
+        assert server.num_arrivals > 0
+
+    def test_ps_with_buffer(self) -> None:
+        server = PS(sizefn=genExp(1.0), buffer_capacity=5)
+        system = QueueSystem([server], arrivalfn=genExp(3.0))
+        N, T = system.sim(num_events=50_000, seed=42)
+        assert N > 0
+        assert T > 0
+        assert server.num_rejected > 0
+
+    def test_srpt_with_buffer(self) -> None:
+        server = SRPT(sizefn=genExp(1.0), buffer_capacity=5)
+        system = QueueSystem([server], arrivalfn=genExp(3.0))
+        N, T = system.sim(num_events=50_000, seed=42)
+        assert N > 0
+        assert T > 0
+        assert server.num_rejected > 0
+
+    def test_fb_with_buffer(self) -> None:
+        server = FB(sizefn=genExp(1.0), buffer_capacity=5)
+        system = QueueSystem([server], arrivalfn=genExp(3.0))
+        N, T = system.sim(num_events=50_000, seed=42)
+        assert N > 0
+        assert T > 0
+        assert server.num_rejected > 0
+
+    def test_seed_determinism_with_buffer(self) -> None:
+        def run(seed):
+            server = FCFS(sizefn=genExp(1.0), buffer_capacity=5)
+            system = QueueSystem([server], arrivalfn=genExp(3.0))
+            return system.sim(num_events=10_000, seed=seed)
+        assert run(42) == run(42)
+
+    def test_is_full_unlimited(self) -> None:
+        server = FCFS(sizefn=genExp(2.0))
+        assert not server.is_full()
+
+    def test_no_rejections_unlimited(self) -> None:
+        server = FCFS(sizefn=genExp(2.0))
+        system = QueueSystem([server], arrivalfn=genExp(1.0))
+        system.sim(num_events=10_000, seed=42)
+        assert server.num_rejected == 0

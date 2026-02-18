@@ -13,11 +13,12 @@ public:
     std::vector<double> remaining;
     std::vector<double> jobArrivals;
 
-    explicit PS(Distribution sizeDist, int num_servers = 1)
-        : Server(std::move(sizeDist), num_servers) {}
+    explicit PS(Distribution sizeDist, int num_servers = 1,
+                int buffer_capacity = -1)
+        : Server(std::move(sizeDist), num_servers, buffer_capacity) {}
 
     std::shared_ptr<Server> clone() const override {
-        return std::make_shared<PS>(sizeDist, num_servers);
+        return std::make_shared<PS>(sizeDist, num_servers, buffer_capacity);
     }
 
     void reset() override {
