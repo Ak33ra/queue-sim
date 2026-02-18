@@ -25,7 +25,9 @@ queue_sim/policies/__init__.py
 tests/test_analytical.py
 tests/test_cpp_analytical.py
 tests/test_cpp_replications.py
+tests/test_cpp_response_times.py
 tests/test_cpp_system.py
 tests/test_littles_law.py
 tests/test_replications.py
+tests/test_response_times.py
 tests/test_system.py

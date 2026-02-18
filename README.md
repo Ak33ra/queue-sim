@@ -2,14 +2,14 @@
 
 A discrete-event simulation engine for queueing networks, with a C++ hot-path backend exposed to Python via pybind11.
 
-Supports pluggable scheduling policies (FCFS, SRPT, PS, FB), multi-server queues (G/G/k), finite-buffer loss queues (M/M/c/c Erlang-B, M/M/1/K), tandem and feedback networks with probabilistic routing, and statistically rigorous output analysis via independent replications with confidence intervals.
+Supports pluggable scheduling policies (FCFS, SRPT, PS, FB), multi-server queues (G/G/k), finite-buffer loss queues (M/M/c/c Erlang-B, M/M/1/K), tandem and feedback networks with probabilistic routing, opt-in per-job response time distribution tracking, and statistically rigorous output analysis via independent replications with confidence intervals.
 
 ## Architecture
 
 ```
 queue_sim/          Python frontend — system construction, replication logic, statistics
 csrc/               C++ backend — event loop, servers, distributions (pybind11)
-tests/              150 tests — analytical validation, Little's law, property-based (Hypothesis)
+tests/              190 tests — analytical validation, Little's law, property-based (Hypothesis)
 ```
 
 **Dual backend.** The same `QueueSystem` interface is available in pure Python and as a compiled C++ extension. The C++ event loop releases the GIL during simulation, enabling concurrent execution.
@@ -23,6 +23,8 @@ tests/              150 tests — analytical validation, Little's law, property-
 **Multi-server queues (G/G/k).** FCFS and PS accept a `num_servers` parameter. With k servers, FCFS runs up to k jobs in parallel (rest wait in FIFO queue); PS shares k servers among all n jobs (rate min(k,n)/n per job). Validated against the Erlang-C formula for M/M/k.
 
 **Finite buffers + loss queues.** All policies accept a `buffer_capacity` parameter (total system capacity K = in-service + waiting). Arrivals to a full server are rejected. Per-server `num_rejected` and `num_arrivals` counters enable computing loss probability P(loss). Supports M/M/c/c (Erlang-B), M/M/1/K, and arbitrary finite-buffer configurations. Validated against the Erlang-B formula and the M/M/1/K analytical loss probability.
+
+**Response time distributions.** Pass `track_response_times=True` to `sim()` to record every measurement-phase job's response time. The resulting `system.response_times` list feeds directly into numpy/matplotlib for CDFs, percentiles, histograms, and tail analysis. Disabled by default for zero overhead.
 
 **Statistical output.** `replicate()` runs N independent replications with deterministic per-replication seeds (SplitMix64), optional warmup, and returns t-distribution confidence intervals — no scipy dependency.
 
@@ -51,6 +53,7 @@ Both backends expose the same `QueueSystem` interface with a few differences:
 | **Distributions** | Any `Callable[[], float]` — custom distributions, mixtures, etc. | Three built-in types only (`ExponentialDist`, `UniformDist`, `BoundedParetoDist`) |
 | **Multi-server (G/G/k)** | `num_servers` param on FCFS, PS | `num_servers` param on FCFS, PS |
 | **Finite buffers** | `buffer_capacity` param on all policies (`None` = unlimited) | `buffer_capacity` param on all policies (`-1` = unlimited) |
+| **Response time tracking** | `track_response_times=True` on `sim()` | `track_response_times=True` on `sim()` |
 | **Parallel replications** | Sequential only | `n_threads` parameter for multithreaded execution |
 | **GIL** | Held during simulation | Released — won't block other Python threads |
 
@@ -125,6 +128,21 @@ result = system.replicate(
     n_replications=30, num_events=10**6, seed=42, warmup=10_000,
 )
 print(f"E[T] = {result.mean_T:.4f}  95% CI: {result.ci_T}")
+
+# --- Response time distribution tracking ---
+
+import numpy as np
+
+system = QueueSystem([FCFS(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+system.sim(num_events=10**6, seed=42, track_response_times=True)
+rt = np.array(system.response_times)
+print(f"Median: {np.median(rt):.4f}, P99: {np.percentile(rt, 99):.4f}")
+
+# Works with any policy
+system = QueueSystem([SRPT(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+system.sim(num_events=10**6, seed=42, track_response_times=True)
+rt = np.array(system.response_times)
+print(f"SRPT Median: {np.median(rt):.4f}, P99: {np.percentile(rt, 99):.4f}")
 ```
 
 ### C++ Backend
@@ -197,6 +215,15 @@ raw = system.replicate(
 from queue_sim.results import _build_replication_result
 result = _build_replication_result(tuple(raw.raw_N), tuple(raw.raw_T), 0.95)
 print(f"E[T] = {result.mean_T:.4f}  95% CI: {result.ci_T}")
+
+# --- Response time distribution tracking ---
+
+import numpy as np
+
+system = cpp.QueueSystem([cpp.FCFS(cpp.ExponentialDist(2.0))], cpp.ExponentialDist(1.0))
+system.sim(num_events=10**6, seed=42, track_response_times=True)
+rt = np.array(system.response_times)
+print(f"Median: {np.median(rt):.4f}, P99: {np.percentile(rt, 99):.4f}")
 ```
 
 ### Available Distributions
@@ -221,6 +248,7 @@ Tests validate simulation output against closed-form results:
 - **Erlang-B (M/M/c/c):** loss probability matches recursive Erlang-B formula for multiple (lam, mu, c) configurations
 - **M/M/1/K:** loss probability matches analytical formula for finite-buffer single-server queues
 - **Little's Law:** E[N] = lambda * E[T] verified for both FCFS and SRPT
+- **Response time tracking:** `len(response_times) == num_events`, all positive, `mean(response_times) ≈ E[T]` within 5%, deterministic, zero-impact when disabled; verified for all policies on both backends
 - **Confidence intervals:** 95% CI from `replicate()` covers the true E[T] on both Python and C++ backends
 - **Property-based (Hypothesis):** fuzz tests for edge cases and invariant checking
 - **Seed determinism:** identical seeds produce identical results; verified on both backends

@@ -73,6 +73,7 @@ public:
             for (auto it = jobs.begin(); it != jobs.end(); ++it) {
                 if (it->remaining <= 1e-12) {
                     double response_time = clock - it->arrivalTime;
+                    _last_response_time = response_time;
                     jobs.erase(it);
                     state -= 1;
                     num_completions += 1;

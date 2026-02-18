@@ -42,6 +42,7 @@ public:
     Distribution arrivalDist;
     std::vector<std::vector<double>> transitionMatrix;
     double T = 0.0;
+    std::vector<double> response_times;
 
     QueueSystem(std::vector<std::shared_ptr<Server>> servers,
                 Distribution arrivalDist,
@@ -60,7 +61,8 @@ public:
 
     std::pair<double, double> sim(int num_events = 1000000,
                                   int seed = -1,
-                                  int warmup = 0) {
+                                  int warmup = 0,
+                                  bool track_response_times = false) {
         verifyTransitionMatrix();
         uint64_t resolved_seed;
         if (seed >= 0) {
@@ -70,9 +72,15 @@ public:
             resolved_seed = static_cast<uint64_t>(rd()) |
                             (static_cast<uint64_t>(rd()) << 32);
         }
+        response_times.clear();
+        std::vector<double>* rt_ptr = nullptr;
+        if (track_response_times) {
+            response_times.reserve(num_events);
+            rt_ptr = &response_times;
+        }
         auto [mean_n, mean_t] = sim_internal(
             servers, arrivalDist, transitionMatrix, num_events,
-            resolved_seed, warmup);
+            resolved_seed, warmup, rt_ptr);
         T = mean_t;
         return {mean_n, mean_t};
     }
@@ -207,7 +215,8 @@ private:
             const std::vector<std::vector<double>>& tm,
             int num_events,
             uint64_t seed,
-            int warmup) {
+            int warmup,
+            std::vector<double>* response_times = nullptr) {
         std::mt19937_64 rng(seed);
         int n_servers = static_cast<int>(srvs.size());
 
@@ -293,6 +302,10 @@ private:
                 if (dest >= n_servers) {
                     num_completions += 1;
                     state -= 1;
+                    if (response_times) {
+                        response_times->push_back(
+                            srvs[idx]->_last_response_time);
+                    }
                 } else {
                     srvs[dest]->num_arrivals += 1;
                     if (srvs[dest]->is_full()) {

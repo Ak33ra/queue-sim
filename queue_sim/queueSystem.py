@@ -88,6 +88,7 @@ class QueueSystem:
         seed: int | None = None,
         *,
         _warmup: int = 0,
+        track_response_times: bool = False,
     ) -> tuple[float, float]:
         """Run the simulation.
 
@@ -152,6 +153,9 @@ class QueueSystem:
             server.num_arrivals = 0
 
         # -- measurement phase ------------------------------------------------
+        if track_response_times:
+            self.response_times: list[float] = []
+
         area_n: float = 0.0
         clock: float = 0.0
 
@@ -174,6 +178,10 @@ class QueueSystem:
                 if dest >= len(self.servers):
                     num_completions += 1
                     state -= 1
+                    if track_response_times:
+                        self.response_times.append(
+                            self.servers[idx]._last_response_time
+                        )
                 else:
                     self.servers[dest].num_arrivals += 1
                     if self.servers[dest].is_full():

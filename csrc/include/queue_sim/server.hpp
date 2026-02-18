@@ -26,6 +26,7 @@ public:
     int buffer_capacity;
     int num_rejected = 0;
     int num_arrivals = 0;
+    double _last_response_time = 0.0;
 
     explicit Server(Distribution sizeDist, int num_servers = 1,
                     int buffer_capacity = -1)
@@ -52,6 +53,7 @@ public:
         state = 0;
         num_rejected = 0;
         num_arrivals = 0;
+        _last_response_time = 0.0;
         arrivalTimes.clear();
     }
 
@@ -60,6 +62,7 @@ public:
     virtual void updateET() {
         double t = clock - arrivalTimes.front();
         arrivalTimes.pop_front();
+        _last_response_time = t;
         double n = static_cast<double>(num_completions);
         T = T * (n - 1.0) / n + t / n;
     }

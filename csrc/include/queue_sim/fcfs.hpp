@@ -80,6 +80,7 @@ public:
 
             // Compute response time for the departing job
             double response_time = clock - channelArrivals[idx];
+            _last_response_time = response_time;
             num_completions += 1;
             double n = static_cast<double>(num_completions);
             T = T * (n - 1.0) / n + response_time / n;

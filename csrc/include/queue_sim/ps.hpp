@@ -55,6 +55,7 @@ public:
             auto it = std::min_element(remaining.begin(), remaining.end());
             int idx = static_cast<int>(it - remaining.begin());
             double response_time = clock - jobArrivals[idx];
+            _last_response_time = response_time;
             remaining.erase(it);
             jobArrivals.erase(jobArrivals.begin() + idx);
             state -= 1;

@@ -68,6 +68,7 @@ class FCFS(Server):
                 key=lambda i: self.channelRemaining[i],
             )
             response_time = self.clock - self.channelArrivals[idx]
+            self._last_response_time = response_time
             self.num_completions += 1
             n = self.num_completions
             self.T = self.T * (n - 1) / n + response_time / n

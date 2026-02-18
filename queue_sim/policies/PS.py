@@ -56,6 +56,7 @@ class PS(Server):
         if self.TTNC <= 0.0:
             idx = min(range(len(self.remaining)), key=lambda i: self.remaining[i])
             response_time = self.clock - self.jobArrivals[idx]
+            self._last_response_time = response_time
             del self.remaining[idx]
             del self.jobArrivals[idx]
             self.state -= 1

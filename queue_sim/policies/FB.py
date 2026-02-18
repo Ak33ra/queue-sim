@@ -60,6 +60,7 @@ class FB(Server):
             for i, j in enumerate(self.jobs):
                 if j[0] <= 1e-12:
                     response_time = self.clock - j[2]
+                    self._last_response_time = response_time
                     del self.jobs[i]
                     self.state -= 1
                     self.num_completions += 1

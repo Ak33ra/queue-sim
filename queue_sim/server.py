@@ -38,6 +38,7 @@ class Server(ABC):
         self.state: int = 0
         self.num_rejected: int = 0
         self.num_arrivals: int = 0
+        self._last_response_time: float = 0.0
 
     def is_full(self) -> bool:
         """Return True if the server's buffer is at capacity."""
@@ -59,6 +60,7 @@ class Server(ABC):
         (e.g. SRPT) should override this.
         """
         t = self.clock - self.arrivalTimes.popleft()
+        self._last_response_time = t
         n = self.num_completions
         self.T = self.T * (n - 1) / n + t / n
 
