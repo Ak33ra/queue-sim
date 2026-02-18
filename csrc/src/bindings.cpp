@@ -63,6 +63,12 @@ PYBIND11_MODULE(_queue_sim_cpp, m) {
                 "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
         }), py::arg("sizefn"));
 
+    // -- ReplicationRawResult ------------------------------------------------
+
+    py::class_<ReplicationRawResult>(m, "ReplicationRawResult")
+        .def_readonly("raw_N", &ReplicationRawResult::raw_N)
+        .def_readonly("raw_T", &ReplicationRawResult::raw_T);
+
     // -- QueueSystem ---------------------------------------------------------
 
     py::class_<QueueSystem>(m, "QueueSystem")
@@ -90,6 +96,13 @@ PYBIND11_MODULE(_queue_sim_cpp, m) {
         .def("sim", &QueueSystem::sim,
              py::arg("num_events") = 1000000,
              py::arg("seed") = -1,
+             py::arg("warmup") = 0,
+             py::call_guard<py::gil_scoped_release>())
+        .def("replicate", &QueueSystem::replicate,
+             py::arg("n_replications") = 30,
+             py::arg("num_events") = 1000000,
+             py::arg("seed") = -1,
+             py::arg("warmup") = 0,
              py::call_guard<py::gil_scoped_release>())
         .def("addServer", &QueueSystem::addServer)
         .def("updateTransitionMatrix", &QueueSystem::updateTransitionMatrix)

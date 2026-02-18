@@ -12,6 +12,7 @@ stepping in real-time increments.
 import random
 from typing import Callable
 
+from .results import ReplicationResult, _build_replication_result, _derive_seed
 from .server import Server
 
 
@@ -85,6 +86,8 @@ class QueueSystem:
         self,
         num_events: int = 10**6,
         seed: int | None = None,
+        *,
+        _warmup: int = 0,
     ) -> tuple[float, float]:
         """Run the simulation.
 
@@ -92,6 +95,7 @@ class QueueSystem:
             num_events: Number of job completions (departures from the system)
                         before stopping.
             seed:       Optional RNG seed for reproducibility.
+            _warmup:    Number of departures to discard before measurement.
 
         Returns:
             (E[N], E[T]): mean number in system and mean response time.
@@ -105,8 +109,34 @@ class QueueSystem:
 
         num_completions = 0
         ttna = self.genArrival()       # time to next arrival
-        area_n: float = 0.0
         state = 0                      # total jobs in the network
+
+        # -- warmup phase (no accumulation) -----------------------------------
+        if _warmup > 0:
+            warmup_done = 0
+            while warmup_done < _warmup:
+                ttnc = self._min_ttnc()
+                ttne = min(ttnc, ttna)
+                completed = [
+                    idx for idx, server in enumerate(self.servers)
+                    if server.update(ttne)
+                ]
+                for idx in completed:
+                    dest = self._route_job(idx)
+                    if dest >= len(self.servers):
+                        warmup_done += 1
+                        state -= 1
+                    else:
+                        self.servers[dest].arrival()
+                if ttna <= ttnc:
+                    state += 1
+                    self.servers[0].arrival()
+                    ttna = self.genArrival()
+                else:
+                    ttna -= ttne
+
+        # -- measurement phase ------------------------------------------------
+        area_n: float = 0.0
         clock: float = 0.0
 
         while num_completions < num_events:
@@ -143,6 +173,48 @@ class QueueSystem:
         mean_t = area_n / max(1, num_completions)
         self.T = mean_t
         return (mean_n, mean_t)
+
+
+    # -- replications ---------------------------------------------------------
+
+    def replicate(
+        self,
+        n_replications: int = 30,
+        num_events: int = 10**6,
+        seed: int | None = None,
+        confidence: float = 0.95,
+        warmup: int = 0,
+    ) -> ReplicationResult:
+        """Run multiple independent replications and return a CI.
+
+        Args:
+            n_replications: Number of independent runs (>= 2).
+            num_events:     Departures per replication.
+            seed:           Base seed (deterministic seed derivation per rep).
+            confidence:     Confidence level in (0, 1).
+            warmup:         Warmup departures discarded per replication.
+
+        Returns:
+            :class:`ReplicationResult` with grand means and CIs.
+        """
+        if n_replications < 2:
+            raise ValueError("n_replications must be >= 2")
+        if not (0 < confidence < 1):
+            raise ValueError("confidence must be in (0, 1)")
+
+        base_seed = seed if seed is not None else random.randrange(2**63)
+
+        raw_N: list[float] = []
+        raw_T: list[float] = []
+        for i in range(n_replications):
+            rep_seed = _derive_seed(base_seed, i)
+            n, t = self.sim(num_events=num_events, seed=rep_seed, _warmup=warmup)
+            raw_N.append(n)
+            raw_T.append(t)
+
+        return _build_replication_result(
+            tuple(raw_N), tuple(raw_T), confidence,
+        )
 
 
 __all__ = ['QueueSystem']
