@@ -2,14 +2,14 @@
 
 A discrete-event simulation engine for queueing networks, with a C++ hot-path backend exposed to Python via pybind11.
 
-Supports pluggable scheduling policies (FCFS, SRPT, PS, FB), multi-server queues (G/G/k), finite-buffer loss queues (M/M/c/c Erlang-B, M/M/1/K), tandem and feedback networks with probabilistic routing, opt-in per-job response time distribution tracking, and statistically rigorous output analysis via independent replications with confidence intervals.
+Supports pluggable scheduling policies (FCFS, SRPT, PS, FB), multi-server queues (G/G/k), finite-buffer loss queues (M/M/c/c Erlang-B, M/M/1/K), tandem and feedback networks with probabilistic routing, opt-in per-job response time distribution tracking, event logging with trajectory reconstruction and animated network visualization, and statistically rigorous output analysis via independent replications with confidence intervals.
 
 ## Architecture
 
 ```
 queue_sim/          Python frontend — system construction, replication logic, statistics
 csrc/               C++ backend — event loop, servers, distributions (pybind11)
-tests/              190 tests — analytical validation, Little's law, property-based (Hypothesis)
+tests/              268 tests — analytical validation, Little's law, property-based (Hypothesis)
 ```
 
 **Dual backend.** The same `QueueSystem` interface is available in pure Python and as a compiled C++ extension. The C++ event loop releases the GIL during simulation, enabling concurrent execution.
@@ -25,6 +25,13 @@ tests/              190 tests — analytical validation, Little's law, property-
 **Finite buffers + loss queues.** All policies accept a `buffer_capacity` parameter (total system capacity K = in-service + waiting). Arrivals to a full server are rejected. Per-server `num_rejected` and `num_arrivals` counters enable computing loss probability P(loss). Supports M/M/c/c (Erlang-B), M/M/1/K, and arbitrary finite-buffer configurations. Validated against the Erlang-B formula and the M/M/1/K analytical loss probability.
 
 **Response time distributions.** Pass `track_response_times=True` to `sim()` to record every measurement-phase job's response time. The resulting `system.response_times` list feeds directly into numpy/matplotlib for CDFs, percentiles, histograms, and tail analysis. Disabled by default for zero overhead.
+
+**Event logging.** Pass `track_events=True` to `sim()` to record every arrival, departure, route, and rejection with timestamps, source/destination server indices, and system state. The resulting `system.event_log` enables full trajectory reconstruction and visualization. Works with both Python and C++ backends.
+
+**Visualization.** Built-in plotting and animation tools for event logs:
+- `plot_system_state()` — step plot of total jobs in the network over time
+- `plot_server_occupancy()` — time-series heatmap of per-server occupancy via `pcolormesh`
+- `animate_network()` — animated network diagram with nodes colored by occupancy, directed routing edges, and per-node queue length labels; returns a `FuncAnimation` for saving as GIF/MP4 or inline Jupyter display
 
 **Statistical output.** `replicate()` runs N independent replications with deterministic per-replication seeds (SplitMix64), optional warmup, and returns t-distribution confidence intervals — no scipy dependency.
 
@@ -54,6 +61,7 @@ Both backends expose the same `QueueSystem` interface with a few differences:
 | **Multi-server (G/G/k)** | `num_servers` param on FCFS, PS | `num_servers` param on FCFS, PS |
 | **Finite buffers** | `buffer_capacity` param on all policies (`None` = unlimited) | `buffer_capacity` param on all policies (`-1` = unlimited) |
 | **Response time tracking** | `track_response_times=True` on `sim()` | `track_response_times=True` on `sim()` |
+| **Event logging** | `track_events=True` on `sim()` | `track_events=True` on `sim()` |
 | **Parallel replications** | Sequential only | `n_threads` parameter for multithreaded execution |
 | **GIL** | Held during simulation | Released — won't block other Python threads |
 
@@ -162,6 +170,47 @@ for name, cls in [("FCFS", FCFS), ("SRPT", SRPT), ("PS", PS)]:
     policies[name] = sys.response_times
 fig, ax = compare_policies(policies, kind="cdf")
 fig, ax = compare_policies(policies, kind="tail")
+
+# --- Event logging + trajectory visualization ---
+
+from queue_sim import per_server_states
+from queue_sim.plotting import plot_system_state, plot_server_occupancy
+from queue_sim.animate import animate_network
+
+# 3-server network with probabilistic routing
+s0 = FCFS(sizefn=genUniform(0.1, 0.7))
+s1 = FCFS(sizefn=genExp(2.0))
+s2 = FCFS(sizefn=genUniform(0.5, 2.3))
+M = [
+    [0.0,  0.25, 0.25, 0.5],   # 25% to each neighbor, 50% exit
+    [0.25, 0.0,  0.25, 0.5],
+    [0.25, 0.25, 0.0,  0.5],
+]
+system = QueueSystem([s0, s1, s2], arrivalfn=genExp(1.5), transitionMatrix=M)
+system.sim(num_events=20_000, seed=42, track_events=True)
+
+log = system.event_log  # EventLog with times, kinds, from_servers, to_servers, states
+
+# Reconstruct per-server occupancy
+data = per_server_states(log)
+# data["server_states"][s][i] = occupancy of server s after event i
+
+# System state over time
+fig, ax = plot_system_state(log)
+
+# Per-server occupancy heatmap
+fig, ax = plot_server_occupancy(log, n_bins=400)
+
+# Animated network diagram (saves as GIF or display inline in Jupyter)
+anim = animate_network(
+    log,
+    transition_matrix=M,
+    positions={0: (0.5, 0.9), 1: (0.15, 0.2), 2: (0.85, 0.2)},
+    n_frames=200,
+    node_size=1200,
+    title="3-Server Network",
+)
+anim.save("network.gif", writer="pillow", fps=12)
 ```
 
 ### C++ Backend
@@ -268,13 +317,19 @@ Tests validate simulation output against closed-form results:
 - **M/M/1/K:** loss probability matches analytical formula for finite-buffer single-server queues
 - **Little's Law:** E[N] = lambda * E[T] verified for both FCFS and SRPT
 - **Response time tracking:** `len(response_times) == num_events`, all positive, `mean(response_times) ≈ E[T]` within 5%, deterministic, zero-impact when disabled; verified for all policies on both backends
+- **Event logging:** parallel-vector consistency, non-decreasing times, departure/arrival/route/rejection semantics, per-server reconstruction invariant (sum of per-server pops = system state), non-negative occupancies with buffer rejections; verified on both backends
+- **Visualization:** `plot_system_state`, `plot_server_occupancy`, `animate_network` return correct types, accept existing axes, produce expected plot elements
 - **Confidence intervals:** 95% CI from `replicate()` covers the true E[T] on both Python and C++ backends
 - **Property-based (Hypothesis):** fuzz tests for edge cases and invariant checking
 - **Seed determinism:** identical seeds produce identical results; verified on both backends
 
-## Example: Scheduling Policy Comparison
+## Examples
 
-See `example_schedule_comparison.py` for a full worked example comparing FCFS vs SRPT under varying load.
+See `examples/` for worked examples:
+- `example_FIFO_SRPT.py` — FCFS vs SRPT under varying load
+- `example_MG1.py` — M/G/1 with a custom service distribution
+- `example_timeseries.py` — system state and heatmap plots for a 3-server non-Markovian network
+- `example_animation.py` — animated network visualization with routing and occupancy labels
 
 At low load the policies perform similarly, but as utilization approaches 1, SRPT significantly outperforms FCFS in mean response time:
 
@@ -290,6 +345,9 @@ queue_sim/
   queueSystem.py          QueueSystem — sim() and replicate()
   results.py              ReplicationResult, CI computation, seed derivation
   server.py               Abstract Server base class
+  event_log.py            EventLog, per_server_states(), _bin_step_function()
+  plotting.py             plot_cdf, plot_tail, compare_policies, plot_system_state, plot_server_occupancy
+  animate.py              animate_network() — FuncAnimation for network state over time
   policies/
     FCFS.py               First-come first-served
     SRPT.py               Shortest remaining processing time
@@ -302,7 +360,8 @@ csrc/
   include/queue_sim/      C++ headers (distributions, server, FCFS, SRPT, PS, FB, queue_system)
   src/bindings.cpp        pybind11 module definition
 
-tests/                    pytest suite (analytical, M/M/k, Little's law, replications, C++ backend)
+tests/                    268 tests (analytical, event log, visualization, animation, C++ backend)
+examples/                 Worked examples (scheduling comparison, time-series plots, animation)
 benchmarks/               Performance benchmarks
 ```
 
