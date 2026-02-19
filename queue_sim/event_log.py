@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import numpy as np
-
 
 class EventLog:
     """Record of simulation events with parallel-vector storage."""
@@ -111,10 +109,10 @@ def per_server_states(
 
 
 def _bin_step_function(
-    times: list[float] | np.ndarray,
-    values: list | np.ndarray,
-    bin_edges: np.ndarray,
-) -> np.ndarray:
+    times,
+    values,
+    bin_edges,
+):
     """Compute time-weighted average of a step function over bins.
 
     Given a step function defined by *times* and *values* (value changes at
@@ -129,6 +127,8 @@ def _bin_step_function(
     Returns:
         Array of shape ``(n_bins,)`` with the time-weighted average per bin.
     """
+    import numpy as np
+
     times = np.asarray(times, dtype=float)
     values = np.asarray(values, dtype=float)
     n_bins = len(bin_edges) - 1
