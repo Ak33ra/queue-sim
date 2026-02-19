@@ -2,6 +2,7 @@
 #include <pybind11/stl.h>
 
 #include "queue_sim/distributions.hpp"
+#include "queue_sim/event_log.hpp"
 #include "queue_sim/fcfs.hpp"
 #include "queue_sim/queue_system.hpp"
 #include "queue_sim/server.hpp"
@@ -107,6 +108,22 @@ PYBIND11_MODULE(_queue_sim_cpp, m) {
                 "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
         }), py::arg("sizefn"), py::arg("buffer_capacity") = -1);
 
+    // -- EventLog ------------------------------------------------------------
+
+    py::class_<EventLog>(m, "EventLog")
+        .def_readonly("times", &EventLog::times)
+        .def_readonly("kinds", &EventLog::kinds)
+        .def_readonly("from_servers", &EventLog::from_servers)
+        .def_readonly("to_servers", &EventLog::to_servers)
+        .def_readonly("states", &EventLog::states)
+        .def("__len__", &EventLog::size)
+        .def_property_readonly_static("ARRIVAL", [](py::object) { return EventLog::ARRIVAL; })
+        .def_property_readonly_static("DEPARTURE", [](py::object) { return EventLog::DEPARTURE; })
+        .def_property_readonly_static("ROUTE", [](py::object) { return EventLog::ROUTE; })
+        .def_property_readonly_static("REJECTION", [](py::object) { return EventLog::REJECTION; })
+        .def_property_readonly_static("EXTERNAL", [](py::object) { return EventLog::EXTERNAL; })
+        .def_property_readonly_static("SYSTEM_EXIT", [](py::object) { return EventLog::SYSTEM_EXIT; });
+
     // -- ReplicationRawResult ------------------------------------------------
 
     py::class_<ReplicationRawResult>(m, "ReplicationRawResult")
@@ -142,6 +159,7 @@ PYBIND11_MODULE(_queue_sim_cpp, m) {
              py::arg("seed") = -1,
              py::arg("warmup") = 0,
              py::arg("track_response_times") = false,
+             py::arg("track_events") = false,
              py::call_guard<py::gil_scoped_release>())
         .def("replicate", &QueueSystem::replicate,
              py::arg("n_replications") = 30,
@@ -153,5 +171,6 @@ PYBIND11_MODULE(_queue_sim_cpp, m) {
         .def("addServer", &QueueSystem::addServer)
         .def("updateTransitionMatrix", &QueueSystem::updateTransitionMatrix)
         .def_readonly("T", &QueueSystem::T)
-        .def_readonly("response_times", &QueueSystem::response_times);
+        .def_readonly("response_times", &QueueSystem::response_times)
+        .def_readonly("event_log", &QueueSystem::event_log);
 }

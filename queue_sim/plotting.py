@@ -144,4 +144,91 @@ def compare_policies(
     return fig, ax
 
 
-__all__ = ["plot_cdf", "plot_tail", "compare_policies"]
+def plot_system_state(
+    log,
+    *,
+    ax: matplotlib.axes.Axes | None = None,
+    **kwargs,
+) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+    """Plot total system state (number in system) over time.
+
+    Args:
+        log: An EventLog (Python or C++) with ``times`` and ``states``.
+        ax: Matplotlib axes. If None, a new figure is created.
+        **kwargs: Passed to ``ax.step()``.
+
+    Returns:
+        (fig, ax) tuple.
+    """
+    plt = _import_matplotlib()
+    fig, ax = _ensure_ax(ax, plt)
+
+    ax.step(log.times, log.states, where="post", **kwargs)
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Number in system")
+
+    return fig, ax
+
+
+def plot_server_occupancy(
+    log,
+    n_servers: int | None = None,
+    *,
+    n_bins: int = 300,
+    ax: matplotlib.axes.Axes | None = None,
+    cmap: str = "viridis",
+    **kwargs,
+) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+    """Plot a heatmap of per-server occupancy over time.
+
+    Args:
+        log: An EventLog (Python or C++) with event data.
+        n_servers: Number of servers (inferred if None).
+        n_bins: Number of time bins for the heatmap.
+        ax: Matplotlib axes. If None, a new figure is created.
+        cmap: Colormap name.
+        **kwargs: Passed to ``ax.pcolormesh()``.
+
+    Returns:
+        (fig, ax) tuple.
+    """
+    from .event_log import _bin_step_function, per_server_states
+
+    plt = _import_matplotlib()
+    fig, ax = _ensure_ax(ax, plt)
+
+    data = per_server_states(log, n_servers=n_servers)
+    n_srv = len(data["server_states"])
+    times_arr = np.array(data["times"])
+
+    t_max = times_arr[-1] if len(times_arr) > 0 else 1.0
+    bin_edges = np.linspace(0, t_max, n_bins + 1)
+
+    grid = np.zeros((n_srv, n_bins))
+    for s in range(n_srv):
+        grid[s] = _bin_step_function(times_arr, data["server_states"][s], bin_edges)
+
+    mesh = ax.pcolormesh(
+        bin_edges,
+        np.arange(n_srv + 1),
+        grid,
+        cmap=cmap,
+        shading="flat",
+        **kwargs,
+    )
+    fig.colorbar(mesh, ax=ax, label="Occupancy")
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Server index")
+    ax.set_yticks(np.arange(n_srv) + 0.5)
+    ax.set_yticklabels([str(i) for i in range(n_srv)])
+
+    return fig, ax
+
+
+__all__ = [
+    "plot_cdf",
+    "plot_tail",
+    "compare_policies",
+    "plot_system_state",
+    "plot_server_occupancy",
+]

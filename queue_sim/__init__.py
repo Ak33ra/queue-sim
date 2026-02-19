@@ -1,5 +1,6 @@
 from importlib.metadata import version
 
+from queue_sim.event_log import EventLog, per_server_states
 from queue_sim.lib import (
     Bernoulli,
     BoundedPareto,
@@ -18,6 +19,8 @@ __version__ = version(__package__ or __name__)
 
 __all__ = [
     "__version__",
+    "EventLog",
+    "per_server_states",
     "QueueSystem",
     "ReplicationResult",
     "Server",

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "distributions.hpp"
+#include "event_log.hpp"
 #include "server.hpp"
 
 namespace queue_sim {
@@ -43,6 +44,7 @@ public:
     std::vector<std::vector<double>> transitionMatrix;
     double T = 0.0;
     std::vector<double> response_times;
+    EventLog event_log;
 
     QueueSystem(std::vector<std::shared_ptr<Server>> servers,
                 Distribution arrivalDist,
@@ -62,7 +64,8 @@ public:
     std::pair<double, double> sim(int num_events = 1000000,
                                   int seed = -1,
                                   int warmup = 0,
-                                  bool track_response_times = false) {
+                                  bool track_response_times = false,
+                                  bool track_events = false) {
         verifyTransitionMatrix();
         uint64_t resolved_seed;
         if (seed >= 0) {
@@ -78,9 +81,15 @@ public:
             response_times.reserve(num_events);
             rt_ptr = &response_times;
         }
+        event_log.clear();
+        EventLog* el_ptr = nullptr;
+        if (track_events) {
+            event_log.reserve(num_events * 2);
+            el_ptr = &event_log;
+        }
         auto [mean_n, mean_t] = sim_internal(
             servers, arrivalDist, transitionMatrix, num_events,
-            resolved_seed, warmup, rt_ptr);
+            resolved_seed, warmup, rt_ptr, el_ptr);
         T = mean_t;
         return {mean_n, mean_t};
     }
@@ -216,7 +225,8 @@ private:
             int num_events,
             uint64_t seed,
             int warmup,
-            std::vector<double>* response_times = nullptr) {
+            std::vector<double>* response_times = nullptr,
+            EventLog* event_log = nullptr) {
         std::mt19937_64 rng(seed);
         int n_servers = static_cast<int>(srvs.size());
 
@@ -306,14 +316,23 @@ private:
                         response_times->push_back(
                             srvs[idx]->_last_response_time);
                     }
+                    if (event_log) {
+                        event_log->push(clock, EventLog::DEPARTURE, idx, EventLog::SYSTEM_EXIT, state);
+                    }
                 } else {
                     srvs[dest]->num_arrivals += 1;
                     if (srvs[dest]->is_full()) {
                         srvs[dest]->num_rejected += 1;
                         num_completions += 1;
                         state -= 1;
+                        if (event_log) {
+                            event_log->push(clock, EventLog::REJECTION, idx, dest, state);
+                        }
                     } else {
                         srvs[dest]->arrival();
+                        if (event_log) {
+                            event_log->push(clock, EventLog::ROUTE, idx, dest, state);
+                        }
                     }
                 }
             }
@@ -322,9 +341,15 @@ private:
                 srvs[0]->num_arrivals += 1;
                 if (srvs[0]->is_full()) {
                     srvs[0]->num_rejected += 1;
+                    if (event_log) {
+                        event_log->push(clock, EventLog::REJECTION, EventLog::EXTERNAL, 0, state);
+                    }
                 } else {
                     state += 1;
                     srvs[0]->arrival();
+                    if (event_log) {
+                        event_log->push(clock, EventLog::ARRIVAL, EventLog::EXTERNAL, 0, state);
+                    }
                 }
                 ttna = sample(arrival_dist, rng);
             } else {

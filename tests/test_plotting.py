@@ -9,7 +9,13 @@ import matplotlib.axes  # noqa: E402
 import matplotlib.figure  # noqa: E402
 
 from queue_sim import FCFS, PS, SRPT, QueueSystem, genExp  # noqa: E402
-from queue_sim.plotting import compare_policies, plot_cdf, plot_tail  # noqa: E402
+from queue_sim.plotting import (  # noqa: E402
+    compare_policies,
+    plot_cdf,
+    plot_server_occupancy,
+    plot_system_state,
+    plot_tail,
+)
 
 NUM_EVENTS = 10_000
 
@@ -113,3 +119,65 @@ class TestComparePolicies:
         fig, ax = compare_policies(multi_policy_rts, ax=ax0)
         assert ax is ax0
         plt.close("all")
+
+
+@pytest.fixture()
+def event_log():
+    """Generate an event log from an M/M/1-FCFS queue."""
+    system = QueueSystem([FCFS(sizefn=genExp(2.0))], arrivalfn=genExp(1.0))
+    system.sim(num_events=NUM_EVENTS, seed=42, track_events=True)
+    return system.event_log
+
+
+@pytest.fixture()
+def tandem_event_log():
+    """Generate an event log from a 2-server tandem."""
+    s0 = FCFS(sizefn=genExp(3.0))
+    s1 = FCFS(sizefn=genExp(3.0))
+    system = QueueSystem([s0, s1], arrivalfn=genExp(1.0))
+    system.sim(num_events=NUM_EVENTS, seed=42, track_events=True)
+    return system.event_log
+
+
+class TestPlotSystemState:
+    def test_returns_fig_ax(self, event_log):
+        fig, ax = plot_system_state(event_log)
+        assert isinstance(fig, matplotlib.figure.Figure)
+        assert isinstance(ax, matplotlib.axes.Axes)
+
+    def test_accepts_existing_ax(self, event_log):
+        import matplotlib.pyplot as plt
+
+        fig0, ax0 = plt.subplots()
+        fig, ax = plot_system_state(event_log, ax=ax0)
+        assert ax is ax0
+        assert fig is fig0
+        plt.close("all")
+
+    def test_has_lines(self, event_log):
+        fig, ax = plot_system_state(event_log)
+        assert len(ax.get_lines()) >= 1
+
+
+class TestPlotServerOccupancy:
+    def test_returns_fig_ax(self, tandem_event_log):
+        fig, ax = plot_server_occupancy(tandem_event_log)
+        assert isinstance(fig, matplotlib.figure.Figure)
+        assert isinstance(ax, matplotlib.axes.Axes)
+
+    def test_accepts_existing_ax(self, tandem_event_log):
+        import matplotlib.pyplot as plt
+
+        fig0, ax0 = plt.subplots()
+        fig, ax = plot_server_occupancy(tandem_event_log, ax=ax0)
+        assert ax is ax0
+        plt.close("all")
+
+    def test_has_collections(self, tandem_event_log):
+        fig, ax = plot_server_occupancy(tandem_event_log)
+        # pcolormesh creates a QuadMesh collection
+        assert len(ax.collections) >= 1
+
+    def test_single_server(self, event_log):
+        fig, ax = plot_server_occupancy(event_log)
+        assert isinstance(fig, matplotlib.figure.Figure)

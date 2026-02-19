@@ -89,6 +89,7 @@ class QueueSystem:
         *,
         _warmup: int = 0,
         track_response_times: bool = False,
+        track_events: bool = False,
     ) -> tuple[float, float]:
         """Run the simulation.
 
@@ -99,6 +100,8 @@ class QueueSystem:
             _warmup:    Number of departures to discard before measurement.
             track_response_times: If True, record every job's response time
                         in ``self.response_times`` (list of floats).
+            track_events: If True, record every event during the measurement
+                        phase in ``self.event_log`` (:class:`EventLog`).
 
         Returns:
             (E[N], E[T]): mean number in system and mean response time.
@@ -158,6 +161,12 @@ class QueueSystem:
         if track_response_times:
             self.response_times: list[float] = []
 
+        if track_events:
+            from .event_log import EventLog
+
+            self.event_log = EventLog()
+            log = self.event_log
+
         area_n: float = 0.0
         clock: float = 0.0
 
@@ -184,23 +193,33 @@ class QueueSystem:
                         self.response_times.append(
                             self.servers[idx]._last_response_time
                         )
+                    if track_events:
+                        log._append(clock, EventLog.DEPARTURE, idx, EventLog.SYSTEM_EXIT, state)
                 else:
                     self.servers[dest].num_arrivals += 1
                     if self.servers[dest].is_full():
                         self.servers[dest].num_rejected += 1
                         num_completions += 1
                         state -= 1
+                        if track_events:
+                            log._append(clock, EventLog.REJECTION, idx, dest, state)
                     else:
                         self.servers[dest].arrival()
+                        if track_events:
+                            log._append(clock, EventLog.ROUTE, idx, dest, state)
 
             # Handle arrival if it fires at or before the next completion
             if ttna <= ttnc:
                 self.servers[0].num_arrivals += 1
                 if self.servers[0].is_full():
                     self.servers[0].num_rejected += 1
+                    if track_events:
+                        log._append(clock, EventLog.REJECTION, EventLog.EXTERNAL, 0, state)
                 else:
                     state += 1
                     self.servers[0].arrival()
+                    if track_events:
+                        log._append(clock, EventLog.ARRIVAL, EventLog.EXTERNAL, 0, state)
                 ttna = self.genArrival()
             else:
                 ttna -= ttne
