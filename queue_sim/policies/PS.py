@@ -5,6 +5,10 @@ All jobs in service share the server(s) equally. With k servers and n jobs:
 - n > k:  each job gets rate k/n
 
 For k=1: rate = 1/n, identical to standard M/G/1-PS.
+
+An optional ``speed_fn(n)`` overrides the total system throughput when *n* jobs
+are present (per-job rate becomes ``speed_fn(n) / n``).  For example,
+``speed_fn = lambda n: n**0.7`` models concave speedup.
 """
 
 import math
@@ -20,8 +24,12 @@ class PS(Server):
         sizefn: Callable[[], float],
         num_servers: int = 1,
         buffer_capacity: int | None = None,
+        speed_fn: Callable[[int], float] | None = None,
     ) -> None:
         super().__init__(sizefn, num_servers, buffer_capacity)
+        self._speed_fn: Callable[[int], float] = (
+            speed_fn if speed_fn is not None else lambda n: min(num_servers, n)
+        )
         self.remaining: list[float] = []
         self.jobArrivals: list[float] = []
 
@@ -49,7 +57,7 @@ class PS(Server):
         if self.state == 0:
             return False
 
-        work = time_elapsed * min(self.num_servers, self.state) / self.state
+        work = time_elapsed * self._speed_fn(self.state) / self.state
         for i in range(len(self.remaining)):
             self.remaining[i] -= work
 
@@ -72,7 +80,7 @@ class PS(Server):
             self.TTNC = math.inf
             return
         min_rem = min(self.remaining)
-        self.TTNC = min_rem * self.state / min(self.num_servers, self.state)
+        self.TTNC = min_rem * self.state / self._speed_fn(self.state)
 
 
 __all__ = ['PS']

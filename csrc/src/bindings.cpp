@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
 #include "queue_sim/distributions.hpp"
@@ -79,20 +80,30 @@ PYBIND11_MODULE(_queue_sim_cpp, m) {
 
     py::class_<PS, Server, std::shared_ptr<PS>>(m, "PS")
         .def(py::init([](py::object dist, int num_servers,
-                         int buffer_capacity) -> PS {
+                         int buffer_capacity,
+                         py::object speed_fn) -> PS {
+            std::function<double(int)> cpp_speed_fn = nullptr;
+            if (!speed_fn.is_none()) {
+                py::function py_fn = speed_fn.cast<py::function>();
+                cpp_speed_fn = [py_fn](int n) -> double {
+                    py::gil_scoped_acquire gil;
+                    return py_fn(n).cast<double>();
+                };
+            }
             if (py::isinstance<ExponentialDist>(dist))
                 return PS(dist.cast<ExponentialDist>(), num_servers,
-                          buffer_capacity);
+                          buffer_capacity, std::move(cpp_speed_fn));
             if (py::isinstance<UniformDist>(dist))
                 return PS(dist.cast<UniformDist>(), num_servers,
-                          buffer_capacity);
+                          buffer_capacity, std::move(cpp_speed_fn));
             if (py::isinstance<BoundedParetoDist>(dist))
                 return PS(dist.cast<BoundedParetoDist>(), num_servers,
-                          buffer_capacity);
+                          buffer_capacity, std::move(cpp_speed_fn));
             throw py::type_error(
                 "Expected ExponentialDist, UniformDist, or BoundedParetoDist");
         }), py::arg("sizefn"), py::arg("num_servers") = 1,
-            py::arg("buffer_capacity") = -1);
+            py::arg("buffer_capacity") = -1,
+            py::arg("speed_fn") = py::none());
 
     // -- FB ------------------------------------------------------------------
 
